@@ -1,7 +1,13 @@
 {
+<<<<<<< HEAD
   "name": "smart-trade-exchange-listener",
   "version": "1.0.0",
   "description": "Smart Trade Exchange Listener",
+=======
+  "name": "smart-trade-node-project-template",
+  "version": "1.0.0",
+  "description": "Node.js project-template for the smart-trader team.",
+>>>>>>> 7b9fed19f8653f9322e3435f1f2abb5df1dd953b
   "main": "lib/index.js",
   "scripts": {
     "start": "nodemon --inspect  ./src/index.js --exec babel-node",
@@ -18,14 +24,24 @@
   ],
   "repository": {
     "type": "git",
+<<<<<<< HEAD
     "url": "git+https://github.com/bitmain-israel/smart-trader-exchange-listener.git"
+=======
+    "url": "git+https://github.com/bitmain-israel/smart-trade-node-project-template.git"
+>>>>>>> 7b9fed19f8653f9322e3435f1f2abb5df1dd953b
   },
   "author": "",
   "license": "ISC",
   "bugs": {
+<<<<<<< HEAD
     "url": "https://github.com/bitmain-israel/smart-trader-exchange-listener/issues"
   },
   "homepage": "https://github.com/bitmain-israel/smart-trader-exchange-listener#readme",
+=======
+    "url": "https://github.com/bitmain-israel/smart-trade-node-project-template/issues"
+  },
+  "homepage": "https://github.com/bitmain-israel/smart-trade-node-project-template#readme",
+>>>>>>> 7b9fed19f8653f9322e3435f1f2abb5df1dd953b
   "devDependencies": {
     "babel-cli": "^6.26.0",
     "babel-core": "^6.26.3",
