@@ -7,16 +7,22 @@ class bitfinex_orderbook {
 
     constructor(orderbook_listener) {
         this.reset_timestamp = 0;
-        this.orderBookChannel = new WebSocket('wss://api.bitfinex.com/ws/2');
+        this.orderBookChannel = null;
         this.channel_id = null;
-        this.orderbook_manager = new orderbook_manager(orderbook_listener);
+        this.orderbook_manager = null;
+        this.snapshotReceived = false;
+    }
+
+    init() {
+        this.orderBookChannel = new WebSocket('wss://api.bitfinex.com/ws/2');  
+        this.orderbook_manager = new orderbook_manager(orderbook_listener);  
     }
 
     normalize_order(data) {
         const size = data[2];
         let new_order = {price: data[1], size: Math.abs(size), 
                          type: size > 0 ? 'bids' : 'asks',
-                         exchange_id: data[0], 
+                         exchange_id: data[0].toString(), 
                          source: 'Bitfinex'};
         return new_order;
     }
@@ -34,8 +40,6 @@ class bitfinex_orderbook {
     }
 
     bind_all_channels() {
-        let snapshotReceived = false;
-
         this.orderBookChannel.on('open', () => {
             this.orderBookChannel.send(JSON.stringify({ event: 'conf', flags: 131072 }));
             this.orderBookChannel.send(JSON.stringify({ event: 'subscribe', channel: 'book', pair: pair, prec: 'R0', len: 100 })); 
@@ -89,7 +93,7 @@ class bitfinex_orderbook {
             });
             this.snapshotReceived = true;
         } else {
-            let order = this.normalize_order(message);
+            let order = this.normalize_order(message[1]);
             if (order.price === 0) this.orderbook_manager.delete_order(order);
             else this.orderbook_manager.change_order(order);
         }    

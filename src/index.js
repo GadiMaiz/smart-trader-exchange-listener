@@ -57,4 +57,5 @@ let bitfinex_listener = new orderbook_listener(null);
 var bitfinexOrderbook = new bitfinex_orderbook(bitfinex_listener);
 bitfinex_listener.set_listener(bitfinexOrderbook.orderbook_manager);
 
+bitfinex_orderbook.init();
 bitfinex_orderbook.bind_all_channels();
