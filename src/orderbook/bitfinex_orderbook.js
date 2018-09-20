@@ -14,22 +14,24 @@ class bitfinex_orderbook {
   }
 
   init() {
-    this.orderBookChannel = new WebSocket('wss://api.bitfinex.com/ws/2');  
-    this.orderbook_manager = new orderbook_manager(orderbook_listener);  
+    this.orderBookChannel = new WebSocket('wss://api.bitfinex.com/ws/2');
+    this.orderbook_manager = new orderbook_manager(orderbook_listener);
   }
 
   normalize_order(data) {
     const size = data[2];
-    let new_order = {price: data[1], size: Math.abs(size), 
+    let new_order = {
+      price: data[1], size: Math.abs(size),
       type: size > 0 ? 'bids' : 'asks',
-      exchange_id: data[0].toString(), 
-      source: 'Bitfinex'};
+      exchange_id: data[0].toString(),
+      source: 'Bitfinex'
+    };
     return new_order;
   }
 
   normalize_orderbook_order(order, type) {
     // console.log(order, type);
-  } 
+  }
 
   bind_channel(channel_name, cb) {
     // console.log(channel_name, cd);
@@ -42,15 +44,15 @@ class bitfinex_orderbook {
   bind_all_channels() {
     this.orderBookChannel.on('open', () => {
       this.orderBookChannel.send(JSON.stringify({ event: 'conf', flags: 131072 }));
-      this.orderBookChannel.send(JSON.stringify({ event: 'subscribe', channel: 'book', pair: pair, prec: 'R0', len: 100 })); 
+      this.orderBookChannel.send(JSON.stringify({ event: 'subscribe', channel: 'book', pair: pair, prec: 'R0', len: 100 }));
     });
-        
+
     this.orderBookChannel.on('message', (message) => {
       message = JSON.parse(message);
 
       if (message.event) return;
       if (message[1] === 'hb') return;
-      if (message[1] === 'cs'){
+      if (message[1] === 'cs') {
         this.handle_checksum_message(this, message[1]);
         return;
       }
@@ -60,7 +62,7 @@ class bitfinex_orderbook {
   }
 
   reset_orderbook() {
-    this.orderBookChannel.send(JSON.stringify({event: 'unsubscribe', chanId: this.channel_id}));    
+    this.orderBookChannel.send(JSON.stringify({ event: 'unsubscribe', chanId: this.channel_id }));
     this.orderBookChannel = new WebSocket('wss://api.bitfinex.com/ws/2');
     this.snapshotReceived = false;
     this.bind_all_channels();
@@ -75,20 +77,20 @@ class bitfinex_orderbook {
     let currentOrderbook = this.orderbook_manager.get_orderbook(25);
     let bids = currentOrderbook['bids'];
     let asks = currentOrderbook['asks'];
-    for(let i=0; i<25 ; i++) {
-      if (bids[i]) checksumData.push(bids[i].price, bids[i].size);   
-      if (asks[i]) checksumData.push(asks[i].price, asks[i].size); 
+    for (let i = 0; i < 25; i++) {
+      if (bids[i]) checksumData.push(bids[i].price, bids[i].size);
+      if (asks[i]) checksumData.push(asks[i].price, asks[i].size);
     }
     const checksumString = checksumData.join(':');
     const checksumCalculation = CRC.str(checksumString);
 
-    if (checksum !== checksumCalculation) this.reset_orderbook();    
+    if (checksum !== checksumCalculation) this.reset_orderbook();
   }
 
   handle_data_message(message) {
-    if (!this.snapshotReceived){
+    if (!this.snapshotReceived) {
       this.channel_id = message[0];
-      message[1].forEach( record => {
+      message[1].forEach(record => {
         this.orderbook_manager.add_order(this.normalize_order(record));
       });
       this.snapshotReceived = true;
@@ -96,7 +98,7 @@ class bitfinex_orderbook {
       let order = this.normalize_order(message[1]);
       if (order.price === 0) this.orderbook_manager.delete_order(order);
       else this.orderbook_manager.change_order(order);
-    }    
+    }
   }
 
 }
