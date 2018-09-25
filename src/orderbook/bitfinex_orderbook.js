@@ -6,6 +6,7 @@ const pair = 'BTCUSD'
 class bitfinex_orderbook {
 
     constructor(orderbook_listener) {
+        this.orderbook_listener = orderbook_listener;
         this.reset_timestamp = 0;
         this.orderBookChannel = null;
         this.channel_id = null;
@@ -15,7 +16,7 @@ class bitfinex_orderbook {
 
     init() {
         this.orderBookChannel = new WebSocket('wss://api.bitfinex.com/ws/2');  
-        this.orderbook_manager = new orderbook_manager(orderbook_listener);  
+        this.orderbook_manager = new orderbook_manager(this.orderbook_listener);  
     }
 
     normalize_order(data) {
@@ -95,8 +96,20 @@ class bitfinex_orderbook {
         } else {
             let order = this.normalize_order(message[1]);
             if (order.price === 0) this.orderbook_manager.delete_order(order);
-            else this.orderbook_manager.change_order(order);
+            else if (this.order_exists(order)) {
+                this.orderbook_manager.change_order(order);
+            }
+            else this.orderbook_manager.add_order(order);
         }    
+    }
+
+    order_exists(order) {
+        const orders = this.orderbook_manager.get_orderbook()[order.type];
+        for(var item in orders) {
+            if (item.exchange_id === order.id && order.source === 'Bitfinex')
+                return true;
+        }
+        return false;  
     }
 
 }
