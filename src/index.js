@@ -2,7 +2,7 @@
 // Set process name
 process.title = ['Smart Trade Exchange Listener'];
 
-/*import server from 'server';
+/*import server from 'server';                                                                                                                                                                                                                                                             
 server.start();*/
 
 import argv from 'optimist';
@@ -57,5 +57,6 @@ let bitfinex_listener = new orderbook_listener(null);
 var bitfinexOrderbook = new bitfinex_orderbook(bitfinex_listener);
 bitfinex_listener.set_listener(bitfinexOrderbook.orderbook_manager);
 
-bitfinex_orderbook.init();
-bitfinex_orderbook.bind_all_channels();
+bitfinexOrderbook.init();
+bitfinexOrderbook.bind_all_channels();
+

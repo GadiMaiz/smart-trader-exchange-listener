@@ -6,17 +6,15 @@ const pair = 'BTCUSD'
 class bitfinex_orderbook {
 
     constructor(orderbook_listener) {
-        this.orderbook_listener = orderbook_listener;
         this.reset_timestamp = 0;
         this.orderBookChannel = null;
         this.channel_id = null;
-        this.orderbook_manager = null;
+        this.orderbook_manager = new orderbook_manager(orderbook_listener);
         this.snapshotReceived = false;
     }
 
     init() {
-        this.orderBookChannel = new WebSocket('wss://api.bitfinex.com/ws/2');  
-        this.orderbook_manager = new orderbook_manager(this.orderbook_listener);  
+        this.orderBookChannel = new WebSocket('wss://api.bitfinex.com/ws/2');    
     }
 
     normalize_order(data) {
