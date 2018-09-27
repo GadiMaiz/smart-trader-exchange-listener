@@ -63,6 +63,23 @@ describe('Stub tests', () => {
       expect(orders).to.have.deep.members(expected_orders.slice(0, -1));
     });
     
+    it('order_exists should return true', () => {
+      const order = {price: 6785, size: 0.35, type: 'asks', exchange_id: '2', source: 'Bitfinex'}
+      const orderbook = {'asks': 
+        [{price: 6780, size: 0.75, type: 'asks', exchange_id: '1', source: 'Bitfinex'},
+        order, {price: 6975, size: 0.32, type: 'asks', exchange_id: '3', source: 'Bitfinex'}], 
+        'bids': []};
+      sinon.stub(bitfinexOrderbook.orderbook_manager, 'get_orderbook').callsFake(() => orderbook);      
+      var result = bitfinexOrderbook.order_exists(order);
+      expect(result).to.be.true;
+    });
+
+    it('order_exists should return false', () => {
+      const order = {price: 6785, size: 0.35, type: 'asks', exchange_id: '15', source: 'Bitfinex'}  
+      var result = bitfinexOrderbook.order_exists(order);
+      expect(result).to.be.false;
+    });
+
     it('handle_data_message should add order', () => {
       const raw_message = [5674, [13, 6650, 0.3]];
       sinon.stub(bitfinexOrderbook, 'order_exists').onCall(0).returns(false).onCall(1).returns(true);
@@ -73,7 +90,6 @@ describe('Stub tests', () => {
 
     it('handle_data_message should change order', () => {
       const raw_message = [5674, [13, 6750, 0.5]];
-      // sinon.stub(bitfinexOrderbook, 'order_exists').callsFake((order) => true);
       sinon.stub(bitfinexOrderbook.orderbook_manager, 'change_order').callsFake((order) => { orders[12].price = raw_message[1][1];
         orders[12].size = raw_message[1][2]; 
       });
