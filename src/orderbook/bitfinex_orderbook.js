@@ -69,7 +69,7 @@ class bitfinex_orderbook {
 
     }
 
-    handle_checksum_message() {
+    handle_checksum_message(checksum) {
         const checksumData = [];
         let currentOrderbook = this.orderbook_manager.get_orderbook(25);
         let bids = currentOrderbook['bids'];
@@ -82,6 +82,14 @@ class bitfinex_orderbook {
         const checksumCalculation = CRC.str(checksumString);
 
         if (checksum !== checksumCalculation) this.reset_orderbook();    
+    }
+    
+    order_exists(order) {
+        const orders = this.orderbook_manager.get_orderbook()[order.type];
+        for(var i = 0; i < orders.length; i++){
+            if ((orders[i].exchange_id === order.exchange_id) && (orders[i].source === 'Bitfinex')) return true;    
+        }
+        return false;  
     }
 
     handle_data_message(message) {
@@ -98,18 +106,8 @@ class bitfinex_orderbook {
                 this.orderbook_manager.change_order(order);
             }
             else this.orderbook_manager.add_order(order);
-        }    
-    }
-
-    order_exists(order) {
-        const orders = this.orderbook_manager.get_orderbook()[order.type];
-        for(var item in orders) {
-            if (item.exchange_id === order.id && order.source === 'Bitfinex')
-                return true;
-        }
-        return false;  
-    }
-
+        }   
+    }    
 }
 
 export default bitfinex_orderbook;
