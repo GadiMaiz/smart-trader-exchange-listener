@@ -1,7 +1,7 @@
 import WebSocket from 'ws';
 import orderbook_manager from 'orderbook/orderbook_manager';
 const CRC = require('crc-32');
-const pair = 'BTCUSD'
+const pair = 'BTCUSD';
 
 class bitfinex_orderbook {
 
@@ -108,6 +108,7 @@ class bitfinex_orderbook {
             else this.orderbook_manager.add_order(order);
         }   
     }    
+
 }
 
 export default bitfinex_orderbook;

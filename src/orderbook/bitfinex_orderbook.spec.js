@@ -32,17 +32,17 @@ describe('Stub tests', () => {
 
   describe('bitfinex_orderbook', () => {
     it('normalize_order should return bid order', () => {
-        const raw_message = [123, 6980, 0.25];
-        const order = bitfinexOrderbook.normalize_order(raw_message);
+      const raw_message = [123, 6980, 0.25];
+      const order = bitfinexOrderbook.normalize_order(raw_message);
 
-        expect(order).to.deep.equals({price: 6980, size: 0.25, type: 'bids', exchange_id: '123', source: 'Bitfinex'});
+      expect(order).to.deep.equals({ price: 6980, size: 0.25, type: 'bids', exchange_id: '123', source: 'Bitfinex' });
     });
 
     it('normalize_order should return ask order', () => {
-        const raw_message = [123, 6980, -0.25];
-        const order = bitfinexOrderbook.normalize_order(raw_message);
+      const raw_message = [123, 6980, -0.25];
+      const order = bitfinexOrderbook.normalize_order(raw_message);
 
-        expect(order).to.deep.equals({price: 6980, size: 0.25, type: 'asks', exchange_id: '123', source: 'Bitfinex'});
+      expect(order).to.deep.equals({ price: 6980, size: 0.25, type: 'asks', exchange_id: '123', source: 'Bitfinex' });
     });
 
     it('handle_data_message should send normalized orders', () => {
