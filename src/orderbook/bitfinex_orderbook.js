@@ -77,13 +77,17 @@ class bitfinex_orderbook {
     let bids = currentOrderbook['bids'];
     let asks = currentOrderbook['asks'];
     for (let i = 0; i < 25; i++) {
-      if (bids[i]) checksumData.push(bids[i].price, bids[i].size);
-      if (asks[i]) checksumData.push(asks[i].price, asks[i].size);
+      if (bids[i]) checksumData.push(bids[i].exchange_id, bids[i].size);
+      if (asks[i]) checksumData.push(asks[i].exchange_id, -asks[i].size);
     }
     const checksumString = checksumData.join(':');
     const checksumCalculation = CRC.str(checksumString);
 
-    if (checksum !== checksumCalculation) this.reset_orderbook();
+    if (checksum !== checksumCalculation) {
+      this.reset_orderbook();
+      return false;
+    }
+    return true;
   }
 
   order_exists(order) {
