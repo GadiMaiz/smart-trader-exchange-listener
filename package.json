@@ -53,6 +53,7 @@
     "kafka-node": "^2.6.1",
     "optimist": "^0.6.1",
     "pusher-js": "^4.3.0",
+    "request": "^2.88.0",
     "sinon": "^6.2.0",
     "winston": "^3.0.0",
     "ws": "^6.0.0"

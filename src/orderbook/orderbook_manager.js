@@ -69,32 +69,32 @@ class orderbook_manager {
   }
 
   print_orderbook() {
-    console.log('Printing asks:');
-    let asks = this.orderbook.asks;
-    let iterator = asks.iterate();
-    let curr = iterator.next();
-    let best_ask = [];
-    let counter = 0;
-    while (!curr.done && counter < 3) {
-      ++counter;
-      best_ask.push({ price: curr.value.key, size: curr.value.value.size });
-      console.log('ask', curr.value.key, curr.value.value.size);
-      curr = iterator.next();
-    }
-    // console.log("Printing bids:");
-    let bids = this.orderbook.bids;
-    iterator = bids.iterate();
-    curr = iterator.next();
-    let best_bid = [];
-    counter = 0;
-    while (!curr.done && counter < 3) {
-      ++counter;
-      best_bid.push({ price: curr.value.key, size: curr.value.value.size });
-      console.log('bid', curr.value.key, curr.value.value.size);
-      curr = iterator.next();
-    }
-    console.log('Ticker', 'asks', best_ask, 'bids', best_bid);
-    console.log('Ticker', 'bids', best_bid);
+    // console.log('Printing asks:');
+    // let asks = this.orderbook.asks;
+    // let iterator = asks.iterate();
+    // let curr = iterator.next();
+    // let best_ask = [];
+    // let counter = 0;
+    // while (!curr.done && counter < 3) {
+    //   ++counter;
+    //   best_ask.push({ price: curr.value.key, size: curr.value.value.size });
+    //   console.log('ask', curr.value.key, curr.value.value.size);
+    //   curr = iterator.next();
+    // }
+    // // console.log("Printing bids:");
+    // let bids = this.orderbook.bids;
+    // iterator = bids.iterate();
+    // curr = iterator.next();
+    // let best_bid = [];
+    // counter = 0;
+    // while (!curr.done && counter < 3) {
+    //   ++counter;
+    //   best_bid.push({ price: curr.value.key, size: curr.value.value.size });
+    //   console.log('bid', curr.value.key, curr.value.value.size);
+    //   curr = iterator.next();
+    // }
+    // console.log('Ticker', 'asks', best_ask, 'bids', best_bid);
+    // console.log('Ticker', 'bids', best_bid);
   }
 
   notify_orderbook_changed() {

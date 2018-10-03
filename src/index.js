@@ -36,13 +36,11 @@ class orderbook_listener {
   }
 }
 
-const bitstamp_listener = new orderbook_listener(null);
-const bitstampOrderbook = new bitstamp_orderbook(bitstamp_listener);
-bitstamp_listener.set_listener(bitstampOrderbook.orderbook_manager);
+// const bitstamp_listener = new orderbook_listener(null);
+// const bitstampOrderbook = new bitstamp_orderbook(bitstamp_listener);
+// bitstamp_listener.set_listener(bitstampOrderbook.orderbook_manager);
 
-bitstampOrderbook.bind_all_channels();
-
-/* import bitfinex_orderbook from 'orderbook/bitfinex_orderbook';
+// bitstampOrderbook.bind_all_channels();
 
 let bitfinex_listener = new orderbook_listener(null);
 let bitfinexOrderbook = new bitfinex_orderbook(bitfinex_listener);

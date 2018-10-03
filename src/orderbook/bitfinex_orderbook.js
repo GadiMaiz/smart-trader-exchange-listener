@@ -1,6 +1,8 @@
 import WebSocket from 'ws';
 import orderbook_manager from 'orderbook/orderbook_manager';
+import Request from 'request';
 const CRC = require('crc-32');
+const _ = require('lodash');
 const pair = 'BTCUSD';
 
 class bitfinex_orderbook {
@@ -52,7 +54,7 @@ class bitfinex_orderbook {
       if (message.event) return;
       if (message[1] === 'hb') return;
       if (message[1] === 'cs') {
-        this.handle_checksum_message(this, message[1]);
+        this.handle_checksum_message(message[2]);
         return;
       }
       this.handle_data_message(message);
@@ -72,18 +74,20 @@ class bitfinex_orderbook {
   }
 
   handle_checksum_message(checksum) {
+    console.log('Checksum message received:' + checksum);
     const checksumData = [];
     let currentOrderbook = this.orderbook_manager.get_orderbook(25);
-    let bids = currentOrderbook['bids'];
-    let asks = currentOrderbook['asks'];
+    let bids = currentOrderbook['bids'].toArray();
+    let asks = currentOrderbook['asks'].toArray();
     for (let i = 0; i < 25; i++) {
       if (bids[i]) checksumData.push(bids[i].exchange_id, bids[i].size);
       if (asks[i]) checksumData.push(asks[i].exchange_id, -asks[i].size);
     }
     const checksumString = checksumData.join(':');
     const checksumCalculation = CRC.str(checksumString);
-
-    if (checksum !== checksumCalculation) {
+    console.log(checksumCalculation);
+    if (checksum !== checksumCalculation && !this.verify_data_correctness()) {
+      console.log('reset orderbook');
       this.reset_orderbook();
       return false;
     }
@@ -91,7 +95,7 @@ class bitfinex_orderbook {
   }
 
   order_exists(order) {
-    const orders = this.orderbook_manager.get_orderbook()[order.type];
+    const orders = this.orderbook_manager.get_orderbook()[order.type].toArray();
     for (let i = 0; i < orders.length; i++) {
       if ((orders[i].exchange_id === order.exchange_id) && (orders[i].source === 'Bitfinex')) return true;
     }
@@ -113,6 +117,30 @@ class bitfinex_orderbook {
       }
       else this.orderbook_manager.add_order(order);
     }
+  }
+
+  verify_data_correctness() {
+    console.log('Verify Bitfinex orderbook');
+    Request.get(
+      `https://api.bitfinex.com/v2/book/tBTCUSD/R0`,
+      (error, response, body) => {
+        let current_snapshot =  [];
+        body.forEach((order) => current_snapshot.push(order.slice(1)));
+        console.log(current_snapshot);
+        let current_orderbook = this.denormalize_orderbook(this.orderbook_manager.get_orderbook(25));
+        console.log(current_orderbook);
+        const xor_result = _.xorWith(current_snapshot, current_orderbook, _.isEqual);
+        if (xor_result.length === 0) return true;
+        return false;
+      }
+    );
+  }
+
+  denormalize_orderbook(orderbook) {
+    let denormalized_orderbook = [];
+    orderbook['bids'].toArary().forEach((bid) => denormalized_orderbook.push([bid.price, bid.size]));
+    orderbook['asks'].toArray().forEach((ask) => denormalized_orderbook.push([ask.price, -ask.size]));
+    return denormalized_orderbook;
   }
 }
 
