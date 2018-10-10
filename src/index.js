@@ -25,7 +25,7 @@ class orderbook_listener {
     this.orderbook = orderbook;
   }
 
-  orderbook_changed(currency) {
+  orderbook_changed() {
     if (this.orderbook && producer_ready) {
       let curr_orderbook = this.orderbook.get_orderbook(10);
       producer.send([{
@@ -47,8 +47,7 @@ let bitfinex_listener = new orderbook_listener(null);
 let bitfinexOrderbook = new bitfinex_orderbook(bitfinex_listener, ['BTC-USD', 'BCH-USD']);
 bitfinex_listener.set_listener(bitfinexOrderbook.orderbook_manager);
 
-console.log(bitfinexOrderbook.orderbook_manager.orderbook);
-// bitfinexOrderbook.init();
-// bitfinexOrderbook.bind_all_channels();
-
+// console.log(bitfinexOrderbook.orderbook_manager.orderbook);
+bitfinexOrderbook.init();
+bitfinexOrderbook.bind_all_channels();
 

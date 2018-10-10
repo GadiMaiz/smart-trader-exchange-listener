@@ -21,8 +21,8 @@ class orderbook_manager {
     }
   }
 
-  add_order(order) {
-    let orders_map = this.orderbook[order.type];
+  add_order(order, asset_pair) {
+    let orders_map = this.orderbook[asset_pair][order.type];
     delete order.type;
     let orders_in_curr_price = orders_map.get(order.price);
     let exchange_id = order.exchange_id;
