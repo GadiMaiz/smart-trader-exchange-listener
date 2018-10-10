@@ -2,24 +2,23 @@ import logger from 'logger';
 import SortedMap from 'collections/sorted-map';
 
 class orderbook_manager {
-  constructor(orderbook_listener) {
-    this.clear_orderbook();
+  constructor(orderbook_listener, exchange_name, asset_pairs) {
+    this.clear_orderbook(asset_pairs);
     this.orderbook_listener = orderbook_listener;
-    this.exchange_name = '';
+    this.exchange_name = exchange_name;
   }
 
-  set_exchange_name(name) {
-    this.exchange_name = name;
-  }
-
-  clear_orderbook() {
+  clear_orderbook(asset_pairs) {
     logger.debug('Clearing orderbook');
+    this.orderbook = {};
     const price_compare_asc = (a, b) => (a < b ? 1 : (a > b ? -1 : 0));
     const price_compare_desc = (a, b) => (a > b ? 1 : (a < b ? -1 : 0));
-    this.orderbook = {
-      asks: new SortedMap(null, null, price_compare_desc),
-      bids: new SortedMap(null, null, price_compare_asc)
-    };
+    for(let i = 0; i < asset_pairs.length; i++) {
+      this.orderbook[asset_pairs[i]] = {
+        asks: new SortedMap(null, null, price_compare_desc),
+        bids: new SortedMap(null, null, price_compare_asc)
+      };
+    }
   }
 
   add_order(order) {
@@ -58,7 +57,7 @@ class orderbook_manager {
       {
         logger.debug('Didn\'t find order with id "%s", %s in price level %s', order.exchange_id, JSON.stringify(order), JSON.stringify(orders_in_curr_price));
       }
-      
+
       if (orders_in_curr_price.size == 0 || Object.keys(orders_in_curr_price.exchange_orders).length == 0)
       {
         orders_map.delete(order.price);

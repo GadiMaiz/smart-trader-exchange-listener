@@ -4,15 +4,15 @@ import Request from 'request';
 const CRC = require('crc-32');
 const _ = require('lodash');
 const pair = 'BTCUSD';
+const bitfinex_pairs = { 'BTC-USD': 'BTCUSD', 'BCH-USD': 'BCHUSD' };
 
 class bitfinex_orderbook {
 
-  constructor(orderbook_listener) {
+  constructor(orderbook_listener, asset_pairs) {
     this.reset_timestamp = 0;
     this.orderBookChannel = null;
     this.channel_id = null;
-    this.orderbook_manager = new orderbook_manager(orderbook_listener);
-    this.orderbook_manager.set_exchange_name('Bitfinex');
+    this.orderbook_manager = new orderbook_manager(orderbook_listener, 'Bitfinex', asset_pairs);
     this.snapshotReceived = false;
     this.id_to_price = {};
   }
