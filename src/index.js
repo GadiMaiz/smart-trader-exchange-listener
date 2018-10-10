@@ -25,22 +25,23 @@ class orderbook_listener {
     this.orderbook = orderbook;
   }
 
-  orderbook_changed() {
+  orderbook_changed(currency) {
     if (this.orderbook && producer_ready) {
       let curr_orderbook = this.orderbook.get_orderbook(10);
       producer.send([{
-        topic: 'orderbook_bitstamp_btc_usd', partition: 0, messages: [JSON.stringify(curr_orderbook)],
+        topic: 'BTC-USD', partition: 0, messages: [JSON.stringify(curr_orderbook),
+          { time: Date.now(), exchange: curr_orderbook.exchange_name }],
         attributes: 0
       }], (err, result) => { });
     }
   }
 }
 
-// const bitstamp_listener = new orderbook_listener(null);
-// const bitstampOrderbook = new bitstamp_orderbook(bitstamp_listener);
-// bitstamp_listener.set_listener(bitstampOrderbook.orderbook_manager);
+const bitstamp_listener = new orderbook_listener(null);
+const bitstampOrderbook = new bitstamp_orderbook(bitstamp_listener);
+bitstamp_listener.set_listener(bitstampOrderbook.orderbook_manager);
 
-// bitstampOrderbook.bind_all_channels();
+bitstampOrderbook.bind_all_channels();
 
 let bitfinex_listener = new orderbook_listener(null);
 let bitfinexOrderbook = new bitfinex_orderbook(bitfinex_listener);
@@ -48,4 +49,5 @@ bitfinex_listener.set_listener(bitfinexOrderbook.orderbook_manager);
 
 bitfinexOrderbook.init();
 bitfinexOrderbook.bind_all_channels();
+
 

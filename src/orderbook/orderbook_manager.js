@@ -5,6 +5,11 @@ class orderbook_manager {
   constructor(orderbook_listener) {
     this.clear_orderbook();
     this.orderbook_listener = orderbook_listener;
+    this.exchange_name = '';
+  }
+
+  set_exchange_name(name) {
+    this.exchange_name = name;
   }
 
   clear_orderbook() {
@@ -90,7 +95,7 @@ class orderbook_manager {
     {
       logger.debug('Didn\'t find order to change for order %s', JSON.stringify(order));
     }
-    //this.print_orderbook();
+    // this.print_orderbook();
   }
 
   print_orderbook() {
