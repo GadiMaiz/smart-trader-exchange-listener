@@ -11,6 +11,7 @@ let kafka_port = argv.kafka_port || '2181';
 let client = new Client(kafka_ip + ':' + kafka_port);
 let producer = new Producer(client);
 let producer_ready = false;
+let required_pairs = ['BTC-USD', 'BCH-USD'];
 
 producer.on('ready', () => {
   producer_ready = true;
@@ -27,12 +28,15 @@ class orderbook_listener {
 
   orderbook_changed() {
     if (this.orderbook && producer_ready) {
-      let curr_orderbook = this.orderbook.get_orderbook(10);
-      producer.send([{
-        topic: 'BTC-USD', partition: 0, messages: [JSON.stringify(curr_orderbook),
-          { time: Date.now(), exchange: curr_orderbook.exchange_name }],
-        attributes: 0
-      }], (err, result) => { });
+      for(let i = 0 ; i < required_pairs.length ; i++) {
+        let pair = required_pairs[i];
+        let curr_orderbook = this.orderbook[pair].get_orderbook(10);
+        producer.send([{
+          topic: pair, partition: 0, messages: [JSON.stringify(curr_orderbook),
+            { time: Date.now(), exchange: curr_orderbook.exchange_name }],
+          attributes: 0
+        }], (err, result) => { });
+      }
     }
   }
 }
@@ -47,7 +51,6 @@ let bitfinex_listener = new orderbook_listener(null);
 let bitfinexOrderbook = new bitfinex_orderbook(bitfinex_listener, ['BTC-USD', 'BCH-USD']);
 bitfinex_listener.set_listener(bitfinexOrderbook.orderbook_manager);
 
-// console.log(bitfinexOrderbook.orderbook_manager.orderbook);
 bitfinexOrderbook.init();
 bitfinexOrderbook.bind_all_channels();
 

@@ -71,9 +71,9 @@ class orderbook_manager {
     // this.print_orderbook();
   }
 
-  change_order(order) {
+  change_order(order, asset_pair) {
     logger.debug('Changing order: %s', JSON.stringify(order));
-    let orders_map = this.orderbook[order.type];
+    let orders_map = this.orderbook[asset_pair][order.type];
     let orders_in_curr_price = orders_map.get(order.price);
     if (orders_in_curr_price != null)
     {

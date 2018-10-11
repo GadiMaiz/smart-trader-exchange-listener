@@ -68,7 +68,7 @@ class bitfinex_orderbook {
         return;
       }
       this.handle_data_message(message);
-      // this.orderbook_manager.notify_orderbook_changed();
+      this.orderbook_manager.notify_orderbook_changed();
     });
   }
 
@@ -92,7 +92,7 @@ class bitfinex_orderbook {
       }
       else if (this.order_exists(order, channel_metadata.pair)) {
         channel_metadata.id_to_price[order['exchange_id']] = order.price;
-        // this.orderbook_manager.change_order(order, channel_metadata.pair);
+        this.orderbook_manager.change_order(order, channel_metadata.pair);
       }
       else {
         channel_metadata.id_to_price[order['exchange_id']] = order.price;
