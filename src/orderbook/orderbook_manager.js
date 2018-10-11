@@ -39,9 +39,9 @@ class orderbook_manager {
     // this.print_orderbook();
   }
 
-  delete_order(order) {
+  delete_order(order, asset_pair) {
     logger.debug('Deleting order: %s', JSON.stringify(order));
-    let orders_map = this.orderbook[order.type];
+    let orders_map = this.orderbook[asset_pair][order.type];
     let orders_in_curr_price = orders_map.get(order.price);
     if (orders_in_curr_price != null)
     {
@@ -68,7 +68,7 @@ class orderbook_manager {
     {
       logger.debug('Didn\'t find order %s', JSON.stringify(order));
     }
-    this.print_orderbook();
+    // this.print_orderbook();
   }
 
   change_order(order) {
@@ -133,10 +133,10 @@ class orderbook_manager {
     }
   }
 
-  get_orderbook(limit) {
+  get_orderbook(asset_pair, limit) {
     if (limit == null)
     {
-      return this.orderbook;
+      return this.orderbook[asset_pair];
     }
     else
     {
@@ -146,7 +146,7 @@ class orderbook_manager {
       {
         let type_limit = limit ? Math.min(limit, this.orderbook[order_types[order_type_index]].length) :
           this.orderbook[order_types[order_type_index]].length;
-        let orders_iterator = this.orderbook[order_types[order_type_index]].iterate();
+        let orders_iterator = this.orderbook[asset_pair][order_types[order_type_index]].iterate();
         let curr_order = orders_iterator.next();
         let curr_types_orders = [];
         for (let order_index = 0; order_index < type_limit && !curr_order.done; ++order_index)

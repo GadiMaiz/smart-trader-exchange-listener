@@ -63,39 +63,43 @@ class bitfinex_orderbook {
         return;
       }
       if (message[1] === 'hb') return;
-      // if (message[1] === 'cs') {
-      //   // this.handle_checksum_message(message[2]);
-      //   return;
-      // }
+      if (message[1] === 'cs') {
+        // this.handle_checksum_message(message[2]);
+        return;
+      }
       this.handle_data_message(message);
       // this.orderbook_manager.notify_orderbook_changed();
     });
   }
 
   handle_data_message(message) {
+    this.order = message;
     const channel_id = message[0];
     let channel_metadata = this.orderbookChannels[channel_id];
     if (!channel_metadata.snapshot_received) {
       message[1].forEach(record => {
         let order = this.normalize_order(record);
+        channel_metadata.id_to_price[order['exchange_id']] = order.price;
         this.orderbook_manager.add_order(order, channel_metadata.pair);
-        channel_metadata.id_to_price[order.exchange_id] = order.price;
       });
       channel_metadata.snapshot_received = true;
-      this.orderbookChannels[channel_id] = channel_metadata;
+    } else {
+      let order = this.normalize_order(message[1]);
+      if (order.price === 0) {
+        order.price = channel_metadata.id_to_price[order.exchange_id];
+        delete channel_metadata.id_to_price[order.exchange_id];
+        this.orderbook_manager.delete_order(order,channel_metadata.pair);
+      }
+      else if (this.order_exists(order, channel_metadata.pair)) {
+        channel_metadata.id_to_price[order['exchange_id']] = order.price;
+        // this.orderbook_manager.change_order(order, channel_metadata.pair);
+      }
+      else {
+        channel_metadata.id_to_price[order['exchange_id']] = order.price;
+        this.orderbook_manager.add_order(order, channel_metadata.pair);
+      }
     }
-    // } else {
-    //   let order = this.normalize_order(message[1]);
-    //   if (order.price === 0) {
-    //     order.price = this.id_to_price[order.exchange_id];
-    //     delete this.id_to_price[order.exchange_id];
-    //     this.orderbook_manager.delete_order(order);
-    //   }
-    //   else if (this.order_exists(order)) {
-    //     this.orderbook_manager.change_order(order);
-    //   }
-    //   else this.orderbook_manager.add_order(order);
-    // }
+    this.orderbookChannels[channel_id] = channel_metadata;
   }
 
   reset_orderbook() {
@@ -130,15 +134,15 @@ class bitfinex_orderbook {
     return true;
   }
 
-  order_exists(order) {
-    const orders = this.orderbook_manager.get_orderbook()[order.type].toArray();
+  order_exists(order, asset_pair) {
+    const orders = this.orderbook_manager.get_orderbook(asset_pair)[order.type].toArray();
     for (let i = 0; i < orders.length; i++) {
       if ((orders[i].exchange_id === order.exchange_id) && (orders[i].source === 'Bitfinex')) return true;
     }
     return false;
   }
 
-  
+
 
   verify_data_correctness() {
     console.log('Verify Bitfinex orderbook');
