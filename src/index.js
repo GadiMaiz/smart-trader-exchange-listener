@@ -31,9 +31,10 @@ class orderbook_listener {
       for(let i = 0 ; i < required_pairs.length ; i++) {
         let pair = required_pairs[i];
         let curr_orderbook = this.orderbook.get_orderbook(pair, 10);
+        curr_orderbook['time'] = Date.now();
+        curr_orderbook['exchange'] = this.orderbook.exchange_name;
         producer.send([{
-          topic: pair, partition: 0, messages: [JSON.stringify(curr_orderbook),
-            { time: Date.now(), exchange: curr_orderbook.exchange_name }],
+          topic: pair, partition: 0, messages: [JSON.stringify(curr_orderbook)],
           attributes: 0
         }], (err, result) => { });
       }
