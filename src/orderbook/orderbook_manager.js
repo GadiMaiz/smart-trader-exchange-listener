@@ -9,7 +9,7 @@ class orderbook_manager {
   }
 
   clear_orderbook(asset_pairs) {
-    logger.debug('Clearing orderbook');
+    logger.debug('Clearing orderbook ');
     this.orderbook = {};
     const price_compare_asc = (a, b) => (a < b ? 1 : (a > b ? -1 : 0));
     const price_compare_desc = (a, b) => (a > b ? 1 : (a < b ? -1 : 0));
@@ -97,34 +97,38 @@ class orderbook_manager {
     // this.print_orderbook();
   }
 
-  print_orderbook() {
+  print_orderbook(asset_pair) {
     // console.log('Printing asks:');
-
-    let asks = this.orderbook.asks;
-    let iterator = asks.iterate();
-    let curr = iterator.next();
-    let best_ask = [];
-    let counter = 0;
-    while (!curr.done && counter < 3) {
-      ++counter;
-      best_ask.push({ price: curr.value.key, size: curr.value.value.size });
-      logger.debug('ask %s %s', curr.value.key, curr.value.value.size);
-      curr = iterator.next();
+    if (asset_pair == null) {
+      return;
     }
-    // console.log("Printing bids:");
-    let bids = this.orderbook.bids;
-    iterator = bids.iterate();
-    curr = iterator.next();
-    let best_bid = [];
-    counter = 0;
-    while (!curr.done && counter < 3) {
-      ++counter;
-      best_bid.push({ price: curr.value.key, size: curr.value.value.size });
-      logger.debug('bid %s %s', curr.value.key, curr.value.value.size);
+    else {
+      let asks = this.orderbook[asset_pair].asks;
+      let iterator = asks.iterate();
+      let curr = iterator.next();
+      let best_ask = [];
+      let counter = 0;
+      while (!curr.done && counter < 3) {
+        ++counter;
+        best_ask.push({ price: curr.value.key, size: curr.value.value.size });
+        logger.debug('ask %s %s', curr.value.key, curr.value.value.size);
+        curr = iterator.next();
+      }
+      // console.log("Printing bids:");
+      let bids = this.orderbook[asset_pair].bids;
+      iterator = bids.iterate();
       curr = iterator.next();
+      let best_bid = [];
+      counter = 0;
+      while (!curr.done && counter < 3) {
+        ++counter;
+        best_bid.push({ price: curr.value.key, size: curr.value.value.size });
+        logger.debug('bid %s %s', curr.value.key, curr.value.value.size);
+        curr = iterator.next();
+      }
+      /* console.log('Ticker', 'asks', best_ask, 'bids', best_bid);
+      console.log('Ticker', 'bids', best_bid);*/
     }
-    /* console.log('Ticker', 'asks', best_ask, 'bids', best_bid);
-    console.log('Ticker', 'bids', best_bid);*/
   }
 
   notify_orderbook_changed() {
@@ -144,7 +148,7 @@ class orderbook_manager {
       let result_orderbook = {};
       for (let order_type_index = 0; order_type_index < order_types.length; ++order_type_index)
       {
-        let type_limit = limit ? Math.min(limit, this.orderbook[order_types[order_type_index]].length) :
+        let type_limit = limit ? Math.min(limit, this.orderbook[asset_pair][order_types[order_type_index]].length) :
           this.orderbook[order_types[order_type_index]].length;
         let orders_iterator = this.orderbook[asset_pair][order_types[order_type_index]].iterate();
         let curr_order = orders_iterator.next();

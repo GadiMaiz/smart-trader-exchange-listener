@@ -1,14 +1,18 @@
 import Pusher from 'pusher-js';
 import orderbook_manager from 'orderbook/orderbook_manager';
 const pusher = new Pusher('de504dc5763aeef9ff52');
+const external_pairs = { 'BTC-USD': '', 'BCH-USD': '_bchusd' };
+const bitstamp_pairs = { '_btcusd': 'BTC-USD', '_bch_usd': 'BCH-USD' };
 
 class bitstamp_orderbook {
-  constructor(orderbook_listener) {
+  constructor(orderbook_listener, asset_pairs) {
     this.reset_timestamp = 0;
-    this.ordersChannel = pusher.subscribe('live_orders');
-    this.orderBookChannel = pusher.subscribe('order_book');
-    this.orderDiffBookChannel = pusher.subscribe('diff_order_book');
-    this.orderbook_manager = new orderbook_manager(orderbook_listener);
+    this.required_pairs = asset_pairs;
+    this.orderbook_channels = {};
+    // this.ordersChannel = pusher.subscribe('live_orders');
+    // this.orderBookChannel = pusher.subscribe('order_book_bchusd');
+    // this.orderDiffBookChannel = pusher.subscribe('diff_order_book');
+    this.orderbook_manager = new orderbook_manager(orderbook_listener, 'Bitstamp', asset_pairs);
   }
 
   normalize_order(data) {
@@ -40,15 +44,39 @@ class bitstamp_orderbook {
   }
 
   bind_all_channels() {
+    for(let i = 0 ; i < this.required_pairs.length ; i++) {
+      let required_pair = this.required_pairs[i];
+      let bitstamp_pair = external_pairs[required_pair];
+      if(bitstamp_pair !== null) {
+        this.orderbook_channels[required_pair] = pusher.subscribe('order_book' + bitstamp_pair);
+      }
+    }
+
     const orderbook = this.orderbook_manager;
     const normalize = this.normalize_order;
+
+    const available_channels = Object.keys(this.orderbook_channels);
+    for(let i = 0 ; i < available_channels.length ; i++) {
+      let asset_pair = available_channels[i];
+      this.orderbook_channels[asset_pair].bind('data', data => {
+        const order_types = ['asks', 'bids'];
+        for (let curr_type_index in order_types) {
+          for (let order_index in data[order_types[curr_type_index]]) {
+            this.orderbook_manager.add_order(
+              this.normalize_orderbook_order(data[order_types[curr_type_index]][order_index],
+                order_types[curr_type_index]), asset_pair);
+          }
+        }
+        this.orderbook_manager.notify_orderbook_changed();
+      });
+    }
     /* this.ordersChannel.bind('order_created', function (data) {
         //if (parseInt(data.datetime) > this.reset_timestamp)
         {
             console.log(new Date().getTime(), 'order added', JSON.stringify(data));
             orderbook.add_order(normalize(data));
         }
- 
+
     });
     this.ordersChannel.bind('order_deleted', function (data) {
         //if (parseInt(data.datetime) > this.reset_timestamp)
@@ -64,20 +92,6 @@ class bitstamp_orderbook {
             orderbook.change_order(normalize(data));
         }
     });*/
-    this.orderBookChannel.bind('data', data => {
-      const order_types = ['asks', 'bids'];
-      // console.log(JSON.stringify(data.bids[0]));
-      // console.log(new Date().getTime(), 'orderbook', JSON.stringify(data));
-      this.orderbook_manager.clear_orderbook();
-      for (let curr_type_index in order_types) {
-        for (let order_index in data[order_types[curr_type_index]]) {
-          this.orderbook_manager.add_order(
-            this.normalize_orderbook_order(data[order_types[curr_type_index]][order_index],
-              order_types[curr_type_index]));
-        }
-      }
-      this.orderbook_manager.notify_orderbook_changed();
-    });
     /* this.orderDiffBookChannel.bind('data', data =>
     {
         //console.log(new Date().getTime(), 'orderbook diff', data);
@@ -92,7 +106,7 @@ class bitstamp_orderbook {
         const response = await fetch(url);
         const orderbook = await response.json();
         bitstamp_orderbook_instance.reset_timestamp = orderbook.timestamp;
-        orderbook_manager.clear_orderbook();
+        orderbook_manager.clear_orderbook(this.required_pairs);
         let order_types = ['bids', 'asks'];
         for (let type_index in order_types) {
           let orderbook_counter = 0;

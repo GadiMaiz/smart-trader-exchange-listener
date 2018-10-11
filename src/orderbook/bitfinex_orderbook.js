@@ -1,9 +1,9 @@
 import WebSocket from 'ws';
+import logger from 'logger';
 import orderbook_manager from 'orderbook/orderbook_manager';
 import Request from 'request';
 const CRC = require('crc-32');
 const _ = require('lodash');
-const pair = 'BTCUSD';
 const external_pairs = { 'BTC-USD': 'BTCUSD', 'BCH-USD': 'BCHUSD' };
 const bitfinex_pairs = { 'BTCUSD': 'BTC-USD', 'BCHUSD': 'BCH-USD' };
 
@@ -17,7 +17,16 @@ class bitfinex_orderbook {
   }
 
   init() {
-    this.orderbookSocket = new WebSocket('wss://api.bitfinex.com/ws/2');
+    while(true) {
+      try {
+        this.orderbookSocket = new WebSocket('wss://api.bitfinex.com/ws/2');
+        break;
+      }
+      catch(err) {
+        logger.debug('Can\'t start server, retry...\n' + err);
+      }
+    }
+
   }
 
   normalize_order(data) {
