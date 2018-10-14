@@ -26,7 +26,6 @@ class bitfinex_orderbook {
         logger.debug('Can\'t start server, retry...\n' + err);
       }
     }
-
   }
 
   normalize_order(data) {
@@ -73,11 +72,11 @@ class bitfinex_orderbook {
       }
       if (message[1] === 'hb') return;
       if (message[1] === 'cs') {
-        // this.handle_checksum_message(message[2]);
+        this.handle_checksum_message(message);
         return;
       }
       this.handle_data_message(message);
-      this.orderbook_manager.notify_orderbook_changed();
+      // this.orderbook_manager.notify_orderbook_changed();
     });
   }
 
@@ -111,6 +110,51 @@ class bitfinex_orderbook {
     this.orderbookChannels[channel_id] = channel_metadata;
   }
 
+  handle_checksum_message(message) {
+    let channel = message[0];
+    let checksum = message[2];
+    let checksumData = [];
+    let currentOrderbook = this.orderbook_manager.get_orderbook(this.orderbookChannels[channel].pair, 25);
+    currentOrderbook = this.expand_orderbook(currentOrderbook);
+    let bids = currentOrderbook['bids'].toArray();
+    let asks = currentOrderbook['asks'].toArray();
+    for (let i = 0; i < 25; i++) {
+      if (bids[i]) checksumData.push(bids[i].id, bids[i].size);
+      if (asks[i]) checksumData.push(asks[i].id, -asks[i].size);
+    }
+    const checksumString = checksumData.join(':');
+    const checksumCalculation = CRC.str(checksumString);
+    if (checksum !== checksumCalculation) {
+      logger.debug('checksum failed - reset orderbook');
+      // this.reset_orderbook();
+      return false;
+    }
+    return true;
+  }
+
+  expand_orderbook(orderbook) {
+    let new_orderbook = { 'bids': [], 'asks': [] };
+    const order_types = ['asks', 'bids'];
+    for(let order_type_index = 0; order_type_index < order_types.length ; order_type_index ++) {
+      for(let i = 0 ; i < orderbook[order_types[order_type_index]].length ; i++) {
+        let order_ids = Object.keys(orderbook[order_types[order_type_index]][i].exchange_orders);
+        for(let order_id_index = 0 ; order_id_index < order_ids.length ; order_id_index++) {
+          new_orderbook[order_types[order_type_index]].push({ id: order_ids[order_id_index], 
+            size: orderbook[order_types[order_type_index]][i].exchange_orders[order_ids[order_id_index]].size });
+        }
+      }
+    }
+    return new_orderbook;
+  }
+
+  order_exists(order, asset_pair) {
+    const orders = this.orderbook_manager.get_orderbook(asset_pair)[order.type].toArray();
+    for (let i = 0; i < orders.length; i++) {
+      if ((orders[i].exchange_id === order.exchange_id) && (orders[i].source === 'Bitfinex')) return true;
+    }
+    return false;
+  }
+
   reset_orderbook() {
     this.orderBookChannel.send(JSON.stringify({ event: 'unsubscribe', chanId: this.channel_id }));
     this.orderBookChannel = new WebSocket('wss://api.bitfinex.com/ws/2');
@@ -122,36 +166,6 @@ class bitfinex_orderbook {
     // print orderbook
   }
 
-  handle_checksum_message(checksum) {
-    console.log('Checksum message received:' + checksum);
-    const checksumData = [];
-    let currentOrderbook = this.orderbook_manager.get_orderbook(25);
-    let bids = currentOrderbook['bids'].toArray();
-    let asks = currentOrderbook['asks'].toArray();
-    for (let i = 0; i < 25; i++) {
-      if (bids[i]) checksumData.push(bids[i].exchange_id, bids[i].size);
-      if (asks[i]) checksumData.push(asks[i].exchange_id, -asks[i].size);
-    }
-    const checksumString = checksumData.join(':');
-    const checksumCalculation = CRC.str(checksumString);
-    console.log(checksumCalculation);
-    if (checksum !== checksumCalculation && !this.verify_data_correctness()) {
-      console.log('reset orderbook');
-      this.reset_orderbook();
-      return false;
-    }
-    return true;
-  }
-
-  order_exists(order, asset_pair) {
-    const orders = this.orderbook_manager.get_orderbook(asset_pair)[order.type].toArray();
-    for (let i = 0; i < orders.length; i++) {
-      if ((orders[i].exchange_id === order.exchange_id) && (orders[i].source === 'Bitfinex')) return true;
-    }
-    return false;
-  }
-
-
 
   verify_data_correctness() {
     console.log('Verify Bitfinex orderbook');
@@ -162,24 +176,11 @@ class bitfinex_orderbook {
         // body.forEach(order => current_snapshot.push(order.slice(1)));
         // console.log(body);
         let current_orderbook = this.denormalize_orderbook(this.orderbook_manager.get_orderbook(25));
-        console.log(current_orderbook);
         const xor_result = _.xorWith(current_snapshot, current_orderbook, _.isEqual);
         if (xor_result.length === 0) return true;
         return false;
       }
     );
-  }
-
-  denormalize_orderbook(orderbook) {
-    console.log('denormalize orderbook');
-    let denormalized_orderbook = [];
-    let bids = [];
-    let asks = [];
-    orderbook['bids'].forEach((price_level) => bids.push(price_level.exchange_orders));
-    orderbook['asks'].forEach((price_level) => asks.concat(price_level.exchange_orders));
-    bids = Object.assign({}, bids);
-    console.log('bids: ' + bids);
-    return denormalized_orderbook;
   }
 
   // order_type => -1 if asks, else bids
