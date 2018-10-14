@@ -126,7 +126,7 @@ class bitfinex_orderbook {
     const checksumCalculation = CRC.str(checksumString);
     if (checksum !== checksumCalculation) {
       logger.debug('checksum failed - reset orderbook');
-      // this.reset_orderbook();
+      this.reset_orderbook();
       return false;
     }
     return true;
@@ -155,11 +155,11 @@ class bitfinex_orderbook {
     return false;
   }
 
-  reset_orderbook() {
-    this.orderBookChannel.send(JSON.stringify({ event: 'unsubscribe', chanId: this.channel_id }));
-    this.orderBookChannel = new WebSocket('wss://api.bitfinex.com/ws/2');
-    this.snapshotReceived = false;
-    this.bind_all_channels();
+  reset_orderbook(channel_id) {
+    this.orderbookSocket.send(JSON.stringify({ event: 'unsubscribe', chanId: channel_id }));
+    this.orderbookChannels[channel_id].snapshot_received = false;
+    let bitfinex_pair = external_pairs[this.orderbookChannels[channel_id].pair];
+    this.orderbookSocket.send(JSON.stringify({ event: 'subscribe', channel: 'book', pair: bitfinex_pair, prec: 'R0', len: 100 }));
   }
 
   print_orderbook(orderbook) {
