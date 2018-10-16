@@ -66,7 +66,7 @@ class bitfinex_orderbook {
 
       if (message.event) {
         if (message.event === 'subscribed' && message.channel === 'book') {
-          this.orderbookChannels[message.chanId] = { pair: bitfinex_pairs[message.pair], snapshot_received: false, id_to_price: {} };
+          this.orderbookChannels[message.chanId] = { pair: bitfinex_pairs[message.pair], snapshot_received: false, id_to_price: {}, active: true };
         }
         return;
       }
@@ -83,53 +83,57 @@ class bitfinex_orderbook {
   handle_data_message(message) {
     this.order = message;
     const channel_id = message[0];
-    let channel_metadata = this.orderbookChannels[channel_id];
-    if (!channel_metadata.snapshot_received) {
-      message[1].forEach(record => {
-        let order = this.normalize_order(record);
-        channel_metadata.id_to_price[order['exchange_id']] = order.price;
-        this.orderbook_manager.add_order(order, channel_metadata.pair);
-      });
-      channel_metadata.snapshot_received = true;
-    } else {
-      let order = this.normalize_order(message[1]);
-      if (order.price === 0) {
-        order.price = channel_metadata.id_to_price[order.exchange_id];
-        delete channel_metadata.id_to_price[order.exchange_id];
-        this.orderbook_manager.delete_order(order,channel_metadata.pair);
+    if (this.orderbookChannels[channel_id] && !this.orderbookChannels[channel_id].active) {
+      delete this.orderbookChannels[channel_id];
+    } else if (this.orderbookChannels[channel_id]) {
+      let channel_metadata = this.orderbookChannels[channel_id];
+      if (!channel_metadata.snapshot_received) {
+        message[1].forEach(record => {
+          let order = this.normalize_order(record);
+          channel_metadata.id_to_price[order['exchange_id']] = order.price;
+          this.orderbook_manager.add_order(order, channel_metadata.pair);
+        });
+        channel_metadata.snapshot_received = true;
+      } else {
+        let order = this.normalize_order(message[1]);
+        if (order.price === 0) {
+          order.price = channel_metadata.id_to_price[order.exchange_id];
+          delete channel_metadata.id_to_price[order.exchange_id];
+          this.orderbook_manager.delete_order(order,channel_metadata.pair);
+        }
+        else if (this.order_exists(order, channel_metadata.pair)) {
+          channel_metadata.id_to_price[order['exchange_id']] = order.price;
+          this.orderbook_manager.change_order(order, channel_metadata.pair);
+        }
+        else {
+          channel_metadata.id_to_price[order['exchange_id']] = order.price;
+          this.orderbook_manager.add_order(order, channel_metadata.pair);
+        }
       }
-      else if (this.order_exists(order, channel_metadata.pair)) {
-        channel_metadata.id_to_price[order['exchange_id']] = order.price;
-        this.orderbook_manager.change_order(order, channel_metadata.pair);
-      }
-      else {
-        channel_metadata.id_to_price[order['exchange_id']] = order.price;
-        this.orderbook_manager.add_order(order, channel_metadata.pair);
-      }
+      this.orderbookChannels[channel_id] = channel_metadata;
     }
-    this.orderbookChannels[channel_id] = channel_metadata;
   }
 
   handle_checksum_message(message) {
     let channel = message[0];
-    let checksum = message[2];
-    let checksumData = [];
-    let currentOrderbook = this.orderbook_manager.get_orderbook(this.orderbookChannels[channel].pair, 25);
-    currentOrderbook = this.expand_orderbook(currentOrderbook);
-    let bids = currentOrderbook['bids'].toArray();
-    let asks = currentOrderbook['asks'].toArray();
-    for (let i = 0; i < 25; i++) {
-      if (bids[i]) checksumData.push(bids[i].id, bids[i].size);
-      if (asks[i]) checksumData.push(asks[i].id, -asks[i].size);
+    if (this.orderbookChannels[channel] && !this.orderbookChannels[channel].active) {
+      let checksum = message[2];
+      let checksumData = [];
+      let currentOrderbook = this.orderbook_manager.get_orderbook(this.orderbookChannels[channel].pair, 25);
+      currentOrderbook = this.expand_orderbook(currentOrderbook);
+      let bids = currentOrderbook['bids'].toArray();
+      let asks = currentOrderbook['asks'].toArray();
+      for (let i = 0; i < 25; i++) {
+        if (bids[i]) checksumData.push(bids[i].id, bids[i].size);
+        if (asks[i]) checksumData.push(asks[i].id, -asks[i].size);
+      }
+      const checksumString = checksumData.join(':');
+      const checksumCalculation = CRC.str(checksumString);
+      if (checksum !== checksumCalculation) {
+        logger.debug('checksum failed - reset orderbook');
+        this.reset_orderbook(channel);
+      }
     }
-    const checksumString = checksumData.join(':');
-    const checksumCalculation = CRC.str(checksumString);
-    if (checksum !== checksumCalculation) {
-      logger.debug('checksum failed - reset orderbook');
-      this.reset_orderbook();
-      return false;
-    }
-    return true;
   }
 
   expand_orderbook(orderbook) {
@@ -139,7 +143,7 @@ class bitfinex_orderbook {
       for(let i = 0 ; i < orderbook[order_types[order_type_index]].length ; i++) {
         let order_ids = Object.keys(orderbook[order_types[order_type_index]][i].exchange_orders);
         for(let order_id_index = 0 ; order_id_index < order_ids.length ; order_id_index++) {
-          new_orderbook[order_types[order_type_index]].push({ id: order_ids[order_id_index], 
+          new_orderbook[order_types[order_type_index]].push({ id: order_ids[order_id_index],
             size: orderbook[order_types[order_type_index]][i].exchange_orders[order_ids[order_id_index]].size });
         }
       }
@@ -156,8 +160,8 @@ class bitfinex_orderbook {
   }
 
   reset_orderbook(channel_id) {
+    this.orderbookChannels[channel_id].active = false;
     this.orderbookSocket.send(JSON.stringify({ event: 'unsubscribe', chanId: channel_id }));
-    this.orderbookChannels[channel_id].snapshot_received = false;
     let bitfinex_pair = external_pairs[this.orderbookChannels[channel_id].pair];
     this.orderbookSocket.send(JSON.stringify({ event: 'subscribe', channel: 'book', pair: bitfinex_pair, prec: 'R0', len: 100 }));
   }
