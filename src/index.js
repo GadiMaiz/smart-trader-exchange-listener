@@ -8,12 +8,12 @@ import { ConfigManager } from 'node-config-module';
 
 process.title = ['Smart Trade Exchange Listener'];
 
-let kafka_ip = argv.kafka_ip || 'localhost';
-let kafka_port = argv.kafka_port || '2181';
-let client = new Client(kafka_ip + ':' + kafka_port);
-let producer = new Producer(client);
+const kafka_ip = argv.kafka_ip || process.env.KAFKA_IP || 'localhost';
+const kafka_port = argv.kafka_port || process.env.KAFKA_PORT || '2181';
+const client = new Client(kafka_ip + ':' + kafka_port);
+const producer = new Producer(client);
 let producer_ready = false;
-let required_pairs = ['BTC-USD', 'BCH-USD'];
+const required_pairs = ['BTC-USD', 'BCH-USD'];
 
 producer.on('ready', () => {
   producer_ready = true;

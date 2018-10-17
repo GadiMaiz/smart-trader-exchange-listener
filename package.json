@@ -57,6 +57,7 @@
     "request": "^2.88.0",
     "sinon": "^6.2.0",
     "winston": "^3.0.0",
-    "ws": "^6.0.0"
+    "ws": "^6.0.0",
+    "node-config-module": "git+https://github.com/bitmain-israel/node-config-module"
   }
 }
