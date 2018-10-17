@@ -1,0 +1,13 @@
+{
+   "EXCHANGE_LIST": {
+      "Bitfinex": [
+         "BTC-USD",
+         "BCH-USD"
+      ],
+      "Bitstamp": [
+         "BTC-USD",
+         "BCH-USD"
+      ], 
+      "Kraken": ["g"]
+   }
+}
