@@ -7,12 +7,12 @@ import { ConfigManager } from 'node-config-module';
 
 process.title = ['Smart Trade Exchange Listener'];
 
-let kafka_ip = argv.kafka_ip || 'localhost';
-let kafka_port = argv.kafka_port || '2181';
-let client = new Client(kafka_ip + ':' + kafka_port);
-let producer = new Producer(client);
+const kafka_ip = argv.kafka_ip || process.env.KAFKA_IP || 'localhost';
+const kafka_port = argv.kafka_port || process.env.KAFKA_PORT || '2181';
+const client = new Client(kafka_ip + ':' + kafka_port);
+const producer = new Producer(client);
 let producer_ready = false;
-let required_pairs = ['BTC-USD', 'BCH-USD'];
+const required_pairs = ['BTC-USD', 'BCH-USD'];
 
 producer.on('ready', () => {
   producer_ready = true;
@@ -55,30 +55,30 @@ ConfigManager.init(defaultConfig, null, () => console.log('callback'));
 
 let exchange_list = ConfigManager.getConfig().EXCHANGE_LIST;
 
-let bitfinex_listener = new orderbook_listener(null);
-let bitfinexOrderbook = new bitfinex_orderbook(bitfinex_listener, exchange_list['Bitfinex']);
+// let bitfinex_listener = new orderbook_listener(null);
+// let bitfinexOrderbook = new bitfinex_orderbook(bitfinex_listener, exchange_list['Bitfinex']);
 
-const bitstamp_listener = new orderbook_listener(null);
-const bitstampOrderbook = new bitstamp_orderbook(bitstamp_listener, required_pairs);
+// const bitstamp_listener = new orderbook_listener(null);
+// const bitstampOrderbook = new bitstamp_orderbook(bitstamp_listener, required_pairs);
 
-for(let exchange_name of Object.keys(exchange_list)) {
-  switch(exchange_name) {
-    case 'Bitfinex':
-      logger.debug('Initialize Bitfinex Orderbook');
-      bitfinex_listener.set_listener(bitfinexOrderbook.orderbook_manager);
+// for(let exchange_name of Object.keys(exchange_list)) {
+//   switch(exchange_name) {
+//     case 'Bitfinex':
+//       logger.debug('Initialize Bitfinex Orderbook');
+//       bitfinex_listener.set_listener(bitfinexOrderbook.orderbook_manager);
 
-      bitfinexOrderbook.init();
-      bitfinexOrderbook.bind_all_channels();
-      break;
-    case 'Bitstamp':
-      logger.debug('Initialize Bitstamp Orderbook');
-      bitstamp_listener.set_listener(bitstampOrderbook.orderbook_manager);
-      bitstampOrderbook.bind_all_channels();
-      break;
-    default:
-      logger.debug(exchange_name + ' is not supported yet');
-  }
-}
+//       bitfinexOrderbook.init();
+//       bitfinexOrderbook.bind_all_channels();
+//       break;
+//     case 'Bitstamp':
+//       logger.debug('Initialize Bitstamp Orderbook');
+//       bitstamp_listener.set_listener(bitstampOrderbook.orderbook_manager);
+//       bitstampOrderbook.bind_all_channels();
+//       break;
+//     default:
+//       logger.debug(exchange_name + ' is not supported yet');
+//   }
+// }
 
 
 
