@@ -3,6 +3,7 @@ import argv from 'optimist';
 import { Producer, Client } from 'kafka-node';
 import bitstamp_orderbook from 'orderbook/bitstamp_orderbook';
 import bitfinex_orderbook from 'orderbook/bitfinex_orderbook';
+import { ConfigManager } from 'node-config-module';
 
 process.title = ['Smart Trade Exchange Listener'];
 
@@ -42,16 +43,45 @@ class orderbook_listener {
   }
 }
 
-const bitstamp_listener = new orderbook_listener(null);
-const bitstampOrderbook = new bitstamp_orderbook(bitstamp_listener, required_pairs);
-bitstamp_listener.set_listener(bitstampOrderbook.orderbook_manager);
+const defaultConfig = {
+  EXCHANGE_LIST: {
+    'Bitfinex': ['BTC-USD', 'BCH-USD'],
+    'Bitstamp': ['BTC-USD', 'BCH-USD'],
+    'Kraken': ['BTC-EUR']
+  }
+};
 
-bitstampOrderbook.bind_all_channels();
+ConfigManager.init(defaultConfig, null, () => console.log('callback'));
+
+let exchange_list = ConfigManager.getConfig().EXCHANGE_LIST;
 
 let bitfinex_listener = new orderbook_listener(null);
-let bitfinexOrderbook = new bitfinex_orderbook(bitfinex_listener, required_pairs);
-bitfinex_listener.set_listener(bitfinexOrderbook.orderbook_manager);
+let bitfinexOrderbook = new bitfinex_orderbook(bitfinex_listener, exchange_list['Bitfinex']);
 
-bitfinexOrderbook.init();
-bitfinexOrderbook.bind_all_channels();
+const bitstamp_listener = new orderbook_listener(null);
+const bitstampOrderbook = new bitstamp_orderbook(bitstamp_listener, required_pairs);
+
+for(let exchange_name of Object.keys(exchange_list)) {
+  switch(exchange_name) {
+    case 'Bitfinex':
+      logger.debug('Initialize Bitfinex Orderbook');
+      bitfinex_listener.set_listener(bitfinexOrderbook.orderbook_manager);
+
+      bitfinexOrderbook.init();
+      bitfinexOrderbook.bind_all_channels();
+      break;
+    case 'Bitstamp':
+      logger.debug('Initialize Bitstamp Orderbook');
+      bitstamp_listener.set_listener(bitstampOrderbook.orderbook_manager);
+      bitstampOrderbook.bind_all_channels();
+      break;
+    default:
+      logger.debug(exchange_name + ' is not supported yet');
+  }
+}
+
+
+
+
+
 

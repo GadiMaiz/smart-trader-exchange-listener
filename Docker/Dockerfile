@@ -10,6 +10,7 @@ COPY package*.json ./
 
 ARG GITHUB_NAME
 ARG GIT_ACCESS_TOKEN
+ARG PORT
 RUN git config --global user.name ${GITHUB_NAME}
 RUN git config --global url."https://${GIT_ACCESS_TOKEN}:@github.com/".insteadOf "https://github.com/"
 
@@ -24,6 +25,6 @@ COPY . .
 
 # Build app
 RUN npm run build
+EXPOSE ${PORT}
 
-EXPOSE 9000 9042 2181
 CMD [ "npm", "run", "run:prod" ]
