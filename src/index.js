@@ -3,7 +3,7 @@ import argv from 'optimist';
 import { Producer, Client } from 'kafka-node';
 import bitstamp_orderbook from 'orderbook/bitstamp_orderbook';
 import bitfinex_orderbook from 'orderbook/bitfinex_orderbook';
-import { ConfigManager } from 'node-config-module';
+import ConfigManager from 'node-config-module';
 // import { config } from '../node_modules/winston';
 
 process.title = ['Smart Trade Exchange Listener'];
