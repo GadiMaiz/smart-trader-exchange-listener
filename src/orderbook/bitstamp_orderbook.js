@@ -1,5 +1,7 @@
+import logger from 'logger';
 import Pusher from 'pusher-js';
 import orderbook_manager from 'orderbook/orderbook_manager';
+import { loggers } from '../../node_modules/winston';
 const pusher = new Pusher('de504dc5763aeef9ff52');
 const external_pairs = { 'BTC-USD': '', 'BCH-USD': '_bchusd' };
 const bitstamp_pairs = { '_btcusd': 'BTC-USD', '_bch_usd': 'BCH-USD' };
@@ -34,9 +36,9 @@ class bitstamp_orderbook {
   }
 
   bind_channel(channel_name, cb) {
-    this.ordersChannel.bind(channel_name, function (data) {
-      cb(channel_name, data);
-    });
+    let bitstamp_pair = external_pairs[channel_name];
+    if (bitstamp_pair ) this.orderbook_channels[channel_name] = pusher.subscribe('order_book' + bitstamp_pair);
+    else logger.debug(channel_name + ' is not defined in Bitstamp');
   }
 
   order_callback(channel_name, order) {
@@ -51,9 +53,6 @@ class bitstamp_orderbook {
         this.orderbook_channels[required_pair] = pusher.subscribe('order_book' + bitstamp_pair);
       }
     }
-
-    const orderbook = this.orderbook_manager;
-    const normalize = this.normalize_order;
 
     const available_channels = Object.keys(this.orderbook_channels);
     for(let i = 0 ; i < available_channels.length ; i++) {
@@ -145,6 +144,11 @@ class bitstamp_orderbook {
       console.log('bid', curr.value.key, curr.value.value.size);
       curr = iterator.next();
     }
+  }
+
+  unsubscribe(pair) {
+    let bitstamp_pair = external_pairs(pair);
+    pusher.unsubscribe('order_book' + bitstamp_pair);
   }
 }
 

@@ -6,6 +6,7 @@ class orderbook_manager {
     this.clear_orderbook(asset_pairs);
     this.orderbook_listener = orderbook_listener;
     this.exchange_name = exchange_name;
+    this.required_pairs = asset_pairs;
   }
 
   clear_orderbook(asset_pairs) {

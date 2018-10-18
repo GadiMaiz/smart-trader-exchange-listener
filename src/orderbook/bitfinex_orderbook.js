@@ -44,7 +44,7 @@ class bitfinex_orderbook {
   }
 
   bind_channel(channel_name, cb) {
-    // console.log(channel_name, cd);
+    this.orderbookSocket.send(JSON.stringify({ event: 'subscribe', channel: 'book', pair: external_pairs[channel_name], prec: 'R0', len: 100 }));
   }
 
   order_callback(channel_name, order) {
@@ -170,6 +170,19 @@ class bitfinex_orderbook {
     // print orderbook
   }
 
+  find_channel(pair) {
+    for(let channel_id of Object.keys(this.orderbookChannels)) {
+      if (this.orderbookChannels[channel_id].pair === pair) return channel_id;
+    }
+  }
+
+  unsubscribe(pair) {
+    let channel_id = this.find_channel(pair);
+    if (channel_id) {
+      this.orderbookChannels[channel_id].active = false;
+      this.orderbookSocket.send(JSON.stringify({ event: 'unsubscribe', chanId: channel_id }));
+    }
+  }
 
   verify_data_correctness() {
     console.log('Verify Bitfinex orderbook');
@@ -187,16 +200,6 @@ class bitfinex_orderbook {
     );
   }
 
-  // order_type => -1 if asks, else bids
-  reset_orders(exchange_orders, order_type) {
-    let orders = [];
-    for(let order_id in exchange_orders) {
-      if (Object.prototype.hasOwnProperty(exchange_orders, order_id)) {
-        orders.push([order_id, exchange_orders[order_id].price, exchange_orders[order_id].size * order_type]);
-      }
-    }
-    return orders;
-  }
 }
 
 export default bitfinex_orderbook;

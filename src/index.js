@@ -1,4 +1,4 @@
-// import logger from 'logger';
+import logger from 'logger';
 import argv from 'optimist';
 import { Producer, Client } from 'kafka-node';
 import bitstamp_orderbook from 'orderbook/bitstamp_orderbook';
@@ -13,7 +13,6 @@ const kafka_port = argv.kafka_port || process.env.KAFKA_PORT || '2181';
 const client = new Client(kafka_ip + ':' + kafka_port);
 const producer = new Producer(client);
 let producer_ready = false;
-const required_pairs = ['BTC-USD', 'BCH-USD'];
 
 producer.on('ready', () => {
   producer_ready = true;
@@ -30,8 +29,8 @@ class orderbook_listener {
 
   orderbook_changed() {
     if (this.orderbook && producer_ready) {
-      for(let i = 0 ; i < required_pairs.length ; i++) {
-        let pair = required_pairs[i];
+      for(let i = 0 ; i < this.orderbook.required_pairs.length ; i++) {
+        let pair = this.orderbook.required_pairs[i];
         let curr_orderbook = this.orderbook.get_orderbook(pair, 10);
         curr_orderbook['time'] = Date.now();
         curr_orderbook['exchange'] = this.orderbook.exchange_name;
@@ -57,21 +56,33 @@ ConfigManager.init(defaultConfig, null, () => console.log('callback'));
 let previous_config = null;
 let current_config = ConfigManager.getConfig();
 let exchange_list = current_config.EXCHANGE_LIST;
-
-const bitfinex_listener = new orderbook_listener(null);
-const bitfinexOrderbook = new bitfinex_orderbook(bitfinex_listener, exchange_list['Bitfinex']);
-const bitstamp_listener = new orderbook_listener(null);
-const bitstampOrderbook = new bitstamp_orderbook(bitstamp_listener, exchange_list['Bitstamp']);
+let listeners = {};
+let orderbooks = {};
 
 function initialize_bitfinex() {
-  bitfinex_listener.set_listener(bitfinexOrderbook.orderbook_manager);
-  bitfinexOrderbook.init();
-  bitfinexOrderbook.bind_all_channels();
+  listeners['Bitfinex'] = new orderbook_listener(null);
+  orderbooks['Bitfinex'] = new bitfinex_orderbook(listeners['Bitfinex'], exchange_list['Bitfinex']);
+  listeners['Bitfinex'].set_listener(orderbooks['Bitfinex'].orderbook_manager);
+  orderbooks['Bitfinex'].init();
+  orderbooks['Bitfinex'].bind_all_channels();
 }
 
 function initialize_bitstamp() {
-  bitstamp_listener.set_listener(bitstampOrderbook.orderbook_manager);
-  bitstampOrderbook.bind_all_channels();
+  listeners['Bitstamp'] = new orderbook_listener(null);
+  orderbooks['Bitstamp']  = new bitstamp_orderbook(listeners['Bitstamp'], exchange_list['Bitstamp']);
+  listeners['Bitstamp'].set_listener(orderbooks['Bitstamp'].orderbook_manager);
+  orderbooks['Bitstamp'].bind_all_channels();
+}
+
+function stop_bitfinex() {
+  orderbooks['Bitfinex'].orderbookSocket.close();
+  delete orderbooks['Bitfinex'];
+  delete listeners['Bitfinex'];
+}
+
+function stop_bitstamp() {
+  delete orderbooks['Bitstamp'];
+  delete listeners['Bitstamp'];
 }
 
 function config_diff(previous_config, current_config) {
@@ -81,8 +92,7 @@ function config_diff(previous_config, current_config) {
   let removed_exchanges = previous_exchanges.filter( exchange => !current_exchanges.includes(exchange));
   let remaining_exchanges = current_exchanges.filter( exchange => previous_exchanges.includes(exchange));
   let change_in_pairs = { 'add': {}, 'remove': {} };
-  for(let exchange_index = 0 ; exchange_index < remaining_exchanges.length ; exchange_index++) {
-    let exchange_name = remaining_exchanges[exchange_index];
+  for(let exchange_name of remaining_exchanges) {
     let added_pairs = current_config.EXCHANGE_LIST[exchange_name]
       .filter( asset_pair => !previous_config.EXCHANGE_LIST[exchange_name].includes(asset_pair));
     let removed_pairs = previous_config.EXCHANGE_LIST[exchange_name]
@@ -93,28 +103,40 @@ function config_diff(previous_config, current_config) {
   return { 'add': added_exchanges, 'remove': removed_exchanges, 'update': change_in_pairs };
 }
 
-const exchange_actions = { 'Bitfinex': { 'add': initialize_bitfinex(), 'remove': 'n' }, 'Bitstamp': { 'add': initialize_bitstamp() } };
-console.log('initialize exchange');
+const exchange_actions = {
+  'Bitfinex': {
+    add: function() { initialize_bitfinex(); },
+    remove: function() { stop_bitfinex(); },
+    add_pair: function(pair) { orderbooks['Bitfinex'].bind_channel(pair); },
+    remove_pair: function(pair) { orderbooks['Bitfinex'].unsubscribe(pair); }
+  },
+  'Bitstamp': {
+    add: function() { initialize_bitstamp(); },
+    remove: function() { stop_bitstamp(); },
+    add_pair: function(pair) { orderbooks['Bitstamp'].bind_channel(pair); },
+    remove_pair: function(pair) { orderbooks['Bitstamp'].unsubscribe(pair); }
+  }
+};
+
 for(let exchange_name of Object.keys(exchange_list)) {
-  if (exchange_actions[exchange_name]) exchange_actions[exchange_name]['add'];
+  if (exchange_actions[exchange_name]) exchange_actions[exchange_name].add();
 }
-console.log('finish');
+
 ConfigManager.setConfigChangeCallback('listener', () => {
   console.log('Responding to change');
   previous_config = current_config;
   current_config = ConfigManager.getConfig();
   let diff = config_diff(previous_config, current_config);
   const actions = ['add', 'remove'];
-  for(let action_index = 0 ; action_index < actions.length ; action_index++) {
-    let action = actions[action_index];
-    for(let exchange_index = 0 ; exchange_index < diff[action].length ; exchange_index++) {
-      let exchange_name = diff[action][exchange_index];
+  for(let action of actions) {
+    for(let exchange_name of diff[action]) {
       if (exchange_actions[exchange_name]) exchange_actions[exchange_name][action];
-      console.log(action + '   ' + exchange_name);
+      logger.debug(action + ' ' + exchange_name);
     }
-    for(let exchange_name of Object.keys(diff.update)) {
-      for(let pair_index = 0 ; diff.update[exchange_name][action] && pair_index < diff.update[exchange_name][action].length ; pair_index ++ ) {
-        console.log('Add or remove channel: ' + exchange_name + ' - ' + diff.update_asset_pairs[exchange_name][action][pair_index]);
+    for(let exchange_name of Object.keys(diff.update[action])) {
+      for(let pair of diff.update[action][exchange_name]) {
+        logger.debug(action + ' channel: ' + exchange_name + ' - ' + pair);
+        exchange_actions[exchange_name][action + '_pair'](pair);
       }
     }
   }
