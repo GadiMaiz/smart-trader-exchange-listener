@@ -7,14 +7,18 @@ const external_pairs = { 'BTC-USD': '', 'BCH-USD': '_bchusd' };
 const bitstamp_pairs = { '_btcusd': 'BTC-USD', '_bch_usd': 'BCH-USD' };
 
 class bitstamp_orderbook {
-  constructor(orderbook_listener, asset_pairs) {
+  constructor(orderbook_listener, assetPairs) {
     this.reset_timestamp = 0;
-    this.required_pairs = asset_pairs;
+    this.required_pairs = null;
     this.orderbook_channels = {};
     // this.ordersChannel = pusher.subscribe('live_orders');
     // this.orderBookChannel = pusher.subscribe('order_book_bchusd');
     // this.orderDiffBookChannel = pusher.subscribe('diff_order_book');
-    this.orderbook_manager = new orderbook_manager(orderbook_listener, 'Bitstamp', asset_pairs);
+    this.orderbook_manager = new orderbook_manager(orderbook_listener, 'Bitstamp', assetPairs);
+  }
+
+  init() {
+    return;
   }
 
   normalize_order(data) {
@@ -35,10 +39,12 @@ class bitstamp_orderbook {
     };
   }
 
-  bind_channel(channel_name, cb) {
-    let bitstamp_pair = external_pairs[channel_name];
-    if (bitstamp_pair ) this.orderbook_channels[channel_name] = pusher.subscribe('order_book' + bitstamp_pair);
-    else logger.debug(channel_name + ' is not defined in Bitstamp');
+  subscribe(assetPair) {
+    let bitstamp_pair = external_pairs[assetPair];
+    let pairIndex = this.orderbook_manager.requiredPairs.indexOf(assetPair);
+    if (pairIndex < 0)  this.orderbook_manager.requiredPairs.push(pairIndex);
+    if (bitstamp_pair ) this.orderbook_channels[assetPair] = pusher.subscribe('order_book' + bitstamp_pair);
+    else logger.debug(assetPair + ' is not defined in Bitstamp');
   }
 
   order_callback(channel_name, order) {
@@ -46,11 +52,10 @@ class bitstamp_orderbook {
   }
 
   bind_all_channels() {
-    for(let i = 0 ; i < this.required_pairs.length ; i++) {
-      let required_pair = this.required_pairs[i];
-      let bitstamp_pair = external_pairs[required_pair];
+    for(let assetPair of this.orderbook_manager.requiredPairs) {
+      let bitstamp_pair = external_pairs[assetPair];
       if(bitstamp_pair !== null) {
-        this.orderbook_channels[required_pair] = pusher.subscribe('order_book' + bitstamp_pair);
+        this.orderbook_channels[assetPair] = pusher.subscribe('order_book' + bitstamp_pair);
       }
     }
 
@@ -148,7 +153,15 @@ class bitstamp_orderbook {
 
   unsubscribe(pair) {
     let bitstamp_pair = external_pairs(pair);
+    let pairIndex = this.orderbook_manager.requiredPairs.indexOf(pair);
+    if (pairIndex > -1)  this.orderbook_manager.requiredPairs.splice(pairIndex, 1);
     pusher.unsubscribe('order_book' + bitstamp_pair);
+  }
+
+  stop() {
+    for(let assetPair of Object.keys(this.orderbook_channels)) {
+      pusher.unsubscribe('order_book' + external_pairs[assetPair]);
+    }
   }
 }
 

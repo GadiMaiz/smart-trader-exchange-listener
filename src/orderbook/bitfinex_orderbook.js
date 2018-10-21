@@ -9,11 +9,10 @@ const bitfinex_pairs = { 'BTCUSD': 'BTC-USD', 'BCHUSD': 'BCH-USD' };
 
 class bitfinex_orderbook {
 
-  constructor(orderbook_listener, asset_pairs) {
-    this.required_pairs = asset_pairs;
+  constructor(orderbook_listener, assetPairs) {
     this.orderbookSocket = null;
     this.orderbookChannels = {};
-    this.orderbook_manager = new orderbook_manager(orderbook_listener, 'Bitfinex', asset_pairs);
+    this.orderbook_manager = new orderbook_manager(orderbook_listener, 'Bitfinex', assetPairs);
   }
 
   init() {
@@ -39,32 +38,36 @@ class bitfinex_orderbook {
     return new_order;
   }
 
-  normalize_orderbook_order(order, type) {
-    // console.log(order, type);
+  subscribe(assetPair) {
+    let pairIndex = this.orderbook_manager.requiredPairs.indexOf(assetPair);
+    if (pairIndex < 0)  this.orderbook_manager.requiredPairs.push(pairIndex);
+    this.orderbookSocket.send(JSON.stringify({ event: 'subscribe', channel: 'book', pair: assetPair, prec: 'R0', len: 100 }));
   }
 
-  bind_channel(channel_name, cb) {
-    this.orderbookSocket.send(JSON.stringify({ event: 'subscribe', channel: 'book', pair: external_pairs[channel_name], prec: 'R0', len: 100 }));
-  }
-
-  order_callback(channel_name, order) {
-    // console.log(channel_name, order);
+  unsubscribe(pair) {
+    let channel_id = this.find_channel(pair);
+    let pairIndex = this.orderbook_manager.requiredPairs.indexOf(pair);
+    if (pairIndex > -1)  this.orderbook_manager.requiredPairs.splice(pairIndex, 1);
+    if (channel_id) {
+      this.orderbookChannels[channel_id].active = false;
+      this.orderbookSocket.send(JSON.stringify({ event: 'unsubscribe', chanId: channel_id }));
+    }
   }
 
   bind_all_channels() {
     this.orderbookSocket.on('open', () => {
       this.orderbookSocket.send(JSON.stringify({ event: 'conf', flags: 131072 }));
-      for(let i = 0 ; i < this.required_pairs.length ; i++) {
-        let bitfinex_pair = external_pairs[this.required_pairs[i]];
-        if (bitfinex_pair)
-          this.orderbookSocket.send(JSON.stringify({ event: 'subscribe', channel: 'book', pair: bitfinex_pair, prec: 'R0', len: 100 }));
+      for(let pair of this.orderbook_manager.requiredPairs) {
+        let bitfinexPair = external_pairs[pair];
+        if (bitfinexPair)
+          this.subscribe(bitfinexPair);
       }
     });
 
     this.orderbookSocket.on('message', (message) => {
       message = JSON.parse(message);
-
       if (message.event) {
+        if (message.event === 'error') logger.debug(message.msg);
         if (message.event === 'subscribed' && message.channel === 'book') {
           this.orderbookChannels[message.chanId] = { pair: bitfinex_pairs[message.pair], snapshot_received: false, id_to_price: {}, active: true };
         }
@@ -79,6 +82,18 @@ class bitfinex_orderbook {
       // this.orderbook_manager.notify_orderbook_changed();
     });
   }
+
+  normalize_orderbook_order(order, type) {
+    // console.log(order, type);
+  }
+
+  
+
+  order_callback(channel_name, order) {
+    // console.log(channel_name, order);
+  }
+
+  
 
   handle_data_message(message) {
     this.order = message;
@@ -173,14 +188,6 @@ class bitfinex_orderbook {
   find_channel(pair) {
     for(let channel_id of Object.keys(this.orderbookChannels)) {
       if (this.orderbookChannels[channel_id].pair === pair) return channel_id;
-    }
-  }
-
-  unsubscribe(pair) {
-    let channel_id = this.find_channel(pair);
-    if (channel_id) {
-      this.orderbookChannels[channel_id].active = false;
-      this.orderbookSocket.send(JSON.stringify({ event: 'unsubscribe', chanId: channel_id }));
     }
   }
 

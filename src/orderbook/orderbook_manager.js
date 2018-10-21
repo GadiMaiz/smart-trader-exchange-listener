@@ -3,19 +3,20 @@ import SortedMap from 'collections/sorted-map';
 
 class orderbook_manager {
   constructor(orderbook_listener, exchange_name, asset_pairs) {
-    this.clear_orderbook(asset_pairs);
+    this.requiredPairs = asset_pairs;
+    this.clear_orderbook();
     this.orderbook_listener = orderbook_listener;
     this.exchange_name = exchange_name;
-    this.required_pairs = asset_pairs;
+    
   }
 
-  clear_orderbook(asset_pairs) {
+  clear_orderbook() {
     logger.debug('Clearing orderbook ');
     this.orderbook = {};
     const price_compare_asc = (a, b) => (a < b ? 1 : (a > b ? -1 : 0));
     const price_compare_desc = (a, b) => (a > b ? 1 : (a < b ? -1 : 0));
-    for(let i = 0; i < asset_pairs.length; i++) {
-      this.orderbook[asset_pairs[i]] = {
+    for(let assetPair of this.requiredPairs) {
+      this.orderbook[assetPair] = {
         asks: new SortedMap(null, null, price_compare_desc),
         bids: new SortedMap(null, null, price_compare_asc)
       };
@@ -138,20 +139,20 @@ class orderbook_manager {
     }
   }
 
-  get_orderbook(asset_pair, limit) {
+  get_orderbook(assetPair, limit) {
     if (limit == null)
     {
-      return this.orderbook[asset_pair];
+      return this.orderbook[assetPair];
     }
     else
     {
       let order_types = ['asks', 'bids'];
       let result_orderbook = {};
-      for (let order_type_index = 0; order_type_index < order_types.length; ++order_type_index)
+      for (let order_type of order_types)
       {
-        let type_limit = limit ? Math.min(limit, this.orderbook[asset_pair][order_types[order_type_index]].length) :
-          this.orderbook[order_types[order_type_index]].length;
-        let orders_iterator = this.orderbook[asset_pair][order_types[order_type_index]].iterate();
+        let type_limit = limit ? Math.min(limit, this.orderbook[assetPair][order_type].length) :
+          this.orderbook[assetPair][order_type].length;
+        let orders_iterator = this.orderbook[assetPair][order_type].iterate();
         let curr_order = orders_iterator.next();
         let curr_types_orders = [];
         for (let order_index = 0; order_index < type_limit && !curr_order.done; ++order_index)
@@ -159,7 +160,7 @@ class orderbook_manager {
           curr_types_orders.push(curr_order.value.value);
           curr_order = orders_iterator.next();
         }
-        result_orderbook[order_types[order_type_index]] = curr_types_orders;
+        result_orderbook[order_type] = curr_types_orders;
       }
       return result_orderbook;
     }
