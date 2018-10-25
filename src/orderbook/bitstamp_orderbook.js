@@ -51,7 +51,7 @@ class bitstamp_orderbook {
     // console.log(channel_name, order);
   }
 
-  bind_all_channels() {
+  start() {
     for(let assetPair of this.orderbook_manager.requiredPairs) {
       let bitstamp_pair = external_pairs[assetPair];
       if(bitstamp_pair !== null) {
@@ -60,18 +60,15 @@ class bitstamp_orderbook {
     }
 
     const available_channels = Object.keys(this.orderbook_channels);
-    for(let i = 0 ; i < available_channels.length ; i++) {
-      let asset_pair = available_channels[i];
-      this.orderbook_channels[asset_pair].bind('data', data => {
-        const order_types = ['asks', 'bids'];
-        for (let curr_type_index in order_types) {
-          for (let order_index in data[order_types[curr_type_index]]) {
-            this.orderbook_manager.add_order(
-              this.normalize_orderbook_order(data[order_types[curr_type_index]][order_index],
-                order_types[curr_type_index]), asset_pair);
+    for(let assetPair of available_channels) {
+      this.orderbook_channels[assetPair].bind('data', data => {
+        const orderTypes = ['asks', 'bids'];
+        for (let orderType of orderTypes) {
+          for (let order of data[orderType]) {
+            this.orderbook_manager.add_order(this.normalize_orderbook_order(order, orderType), assetPair);
           }
         }
-        this.orderbook_manager.notify_orderbook_changed();
+        this.orderbook_manager.notify_orderbook_changed(assetPair);
       });
     }
     /* this.ordersChannel.bind('order_created', function (data) {

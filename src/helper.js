@@ -1,6 +1,7 @@
 import bitstamp_orderbook from 'orderbook/bitstamp_orderbook';
 import bitfinex_orderbook from 'orderbook/bitfinex_orderbook';
 import orderbook_listener from './index';
+import logger from 'logger';
 
 const ORDERBOOKS = {
   bitstamp_orderbook,
@@ -21,18 +22,22 @@ export const DEFAULT_CONFIG = {
 };
 
 export const EXCHANGE_ACTIONS = {
-  add: function(exchangeName, listeners, orderbooks) { initializeExchange(exchangeName, listeners, orderbooks) },
-  remove: function(exchangeName, listeners, orderbooks) { stopExchange(exchangeName, listeners, orderbooks) },
-  addPair: function(exchangeName, orderbooks, assetPair) { subscribe(exchangeName, orderbooks, assetPair) },
-  removePair: function(exchangeName, orderbooks, assetPair) { unsubscribe(exchangeName, orderbooks, assetPair) }
+  add: function(exchangeName, listeners, orderbooks) { initializeExchange(exchangeName, listeners, orderbooks); },
+  remove: function(exchangeName, listeners, orderbooks) { stopExchange(exchangeName, listeners, orderbooks); },
+  addPair: function(exchangeName, orderbooks, assetPair) { subscribe(exchangeName, orderbooks, assetPair); },
+  removePair: function(exchangeName, orderbooks, assetPair) { unsubscribe(exchangeName, orderbooks, assetPair); }
 };
 
 export const initializeExchange = (exchangeName, listeners, orderbooks, assetPairs) => {
-  listeners[exchangeName] = new orderbook_listener(null);
-  orderbooks[exchangeName] = new DynamicOrderbook(exchangeName.toLowerCase() + '_orderbook', listeners[exchangeName], assetPairs);
-  listeners[exchangeName].set_listener(orderbooks[exchangeName].orderbook_manager);
-  orderbooks[exchangeName].init();
-  orderbooks[exchangeName].bind_all_channels();
+  let exchangeOrderbook = exchangeName.toLowerCase() + '_orderbook';
+  if (ORDERBOOKS[exchangeOrderbook]) {
+    listeners[exchangeName] = new orderbook_listener(null);
+    orderbooks[exchangeName] = new DynamicOrderbook(exchangeOrderbook, listeners[exchangeName], assetPairs);
+    listeners[exchangeName].set_listener(orderbooks[exchangeName].orderbook_manager);
+    orderbooks[exchangeName].init();
+    orderbooks[exchangeName].start();
+  }
+  else logger.debug(exchangeName + ' is not supported yet');
 };
 
 export const stopExchange = (exchangeName, listeners, orderbooks) => {
@@ -57,7 +62,14 @@ export const configDiff = (previous_config, current_config) => {
     if (removed_pairs) change_in_pairs['remove'][exchange_name] = removed_pairs;
   }
   return { 'add': added_exchanges, 'remove': removed_exchanges, 'update': change_in_pairs };
+};
+
+function subscribe(exchangeName, orderbooks, assetPair) {
+  orderbooks[exchangeName].subscribe(assetPair);
 }
 
+function unsubscribe(exchangeName, orderbooks, assetPair) {
+  orderbooks[exchangeName].unsubscribe(assetPair);
+}
 
 

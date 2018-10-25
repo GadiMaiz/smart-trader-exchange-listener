@@ -2,20 +2,20 @@ import logger from 'logger';
 import SortedMap from 'collections/sorted-map';
 
 class orderbook_manager {
-  constructor(orderbook_listener, exchange_name, asset_pairs) {
-    this.requiredPairs = asset_pairs;
-    this.clear_orderbook();
+  constructor(orderbook_listener, exchange_name, assetPairs) {
+    this.requiredPairs = assetPairs;
+    this.clear_orderbook(this.requiredPairs);
     this.orderbook_listener = orderbook_listener;
     this.exchange_name = exchange_name;
     
   }
 
-  clear_orderbook() {
+  clear_orderbook(assetPairs) {
     logger.debug('Clearing orderbook ');
     this.orderbook = {};
     const price_compare_asc = (a, b) => (a < b ? 1 : (a > b ? -1 : 0));
     const price_compare_desc = (a, b) => (a > b ? 1 : (a < b ? -1 : 0));
-    for(let assetPair of this.requiredPairs) {
+    for(let assetPair of assetPairs) {
       this.orderbook[assetPair] = {
         asks: new SortedMap(null, null, price_compare_desc),
         bids: new SortedMap(null, null, price_compare_asc)
@@ -133,9 +133,9 @@ class orderbook_manager {
     }
   }
 
-  notify_orderbook_changed() {
+  notify_orderbook_changed(assetPair) {
     if (this.orderbook_listener) {
-      this.orderbook_listener.orderbook_changed();
+      this.orderbook_listener.orderbook_changed(assetPair);
     }
   }
 

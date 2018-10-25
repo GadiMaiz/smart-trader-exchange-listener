@@ -54,7 +54,7 @@ class bitfinex_orderbook {
     }
   }
 
-  bind_all_channels() {
+  start() {
     this.orderbookSocket.on('open', () => {
       this.orderbookSocket.send(JSON.stringify({ event: 'conf', flags: 131072 }));
       for(let pair of this.orderbook_manager.requiredPairs) {
@@ -79,7 +79,6 @@ class bitfinex_orderbook {
         return;
       }
       this.handle_data_message(message);
-      // this.orderbook_manager.notify_orderbook_changed();
     });
   }
 
@@ -126,6 +125,7 @@ class bitfinex_orderbook {
         }
       }
       this.orderbookChannels[channel_id] = channel_metadata;
+      this.orderbook_manager.notify_orderbook_changed(channel_metadata.pair);
     }
   }
 

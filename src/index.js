@@ -25,17 +25,17 @@ export default class orderbook_listener {
     this.orderbook = orderbook;
   }
 
-  orderbook_changed() {
+  orderbook_changed(assetPair) {
+    // TODO: Write to kafka only relevamt pair
     if (this.orderbook && producer_ready) {
-      for(let pair of this.orderbook.requiredPairs) {
-        let curr_orderbook = this.orderbook.get_orderbook(pair, 10);
-        curr_orderbook['time'] = Date.now();
-        curr_orderbook['exchange'] = this.orderbook.exchange_name;
-        producer.send([{
-          topic: pair, partition: 0, messages: [JSON.stringify(curr_orderbook)],
-          attributes: 0
-        }], (err, result) => { });
-      }
+      let curr_orderbook = this.orderbook.get_orderbook(assetPair, 10);
+      curr_orderbook['time'] = Date.now();
+      curr_orderbook['exchange'] = this.orderbook.exchange_name;
+      producer.send([{
+        topic: assetPair, partition: 0, messages: [JSON.stringify(curr_orderbook)],
+        attributes: 0
+      }], (err, result) => { });
+
     }
   }
 }
@@ -54,7 +54,6 @@ ConfigManager.init(DEFAULT_CONFIG, null, () => {
 });
 
 ConfigManager.setConfigChangeCallback('listener', () => {
-  console.log('Responding to change');
   previousConfig = currentConfig;
   currentConfig = ConfigManager.getConfig();
   let diff = configDiff(previousConfig, currentConfig);
@@ -66,12 +65,14 @@ ConfigManager.setConfigChangeCallback('listener', () => {
     }
     for(let exchangeName of Object.keys(diff.update[action])) {
       for(let pair of diff.update[action][exchangeName]) {
-        logger.debug(action + ' channel: ' + exchangeName + ' - ' + pair);
-        EXCHANGE_ACTIONS[action + '_pair'](exchangeName, orderbooks, pair);
+        logger.debug(action + ' orderbook: ' + exchangeName + ' - ' + pair);
+        EXCHANGE_ACTIONS[action + 'Pair'](exchangeName, orderbooks, pair);
       }
     }
   }
 });
+
+
 
 
 
