@@ -1,22 +1,22 @@
 import logger from 'logger';
 import argv from 'optimist';
 import { Producer, Client } from 'kafka-node';
-import bitstamp_orderbook from 'orderbook/bitstamp_orderbook';
-import bitfinex_orderbook from 'orderbook/bitfinex_orderbook';
+import ConfigManager from 'node-config-module';
+import { initializeExchange, DEFAULT_CONFIG, configDiff, EXCHANGE_ACTIONS } from './helper';
 
 process.title = ['Smart Trade Exchange Listener'];
 
-let kafka_ip = argv.kafka_ip || 'localhost';
-let kafka_port = argv.kafka_port || '2181';
-let client = new Client(kafka_ip + ':' + kafka_port);
-let producer = new Producer(client);
+const kafka_ip = argv.kafka_ip || process.env.KAFKA_IP || 'localhost';
+const kafka_port = argv.kafka_port || process.env.KAFKA_PORT || '2181';
+const client = new Client(kafka_ip + ':' + kafka_port);
+const producer = new Producer(client);
 let producer_ready = false;
 
 producer.on('ready', () => {
   producer_ready = true;
 });
 
-class orderbook_listener {
+export default class orderbook_listener {
   constructor(orderbook) {
     this.set_listener(orderbook);
   }
@@ -25,28 +25,64 @@ class orderbook_listener {
     this.orderbook = orderbook;
   }
 
-  orderbook_changed() {
+  orderbook_changed(assetPair) {
     if (this.orderbook && producer_ready) {
-      let curr_orderbook = this.orderbook.get_orderbook(10);
+      let curr_orderbook = this.orderbook.get_orderbook(assetPair, 10);
+      curr_orderbook['time'] = Date.now();
+      curr_orderbook['exchange'] = this.orderbook.exchange_name;
       producer.send([{
-        topic: 'orderbook_bitstamp_btc_usd', partition: 0, messages: [JSON.stringify(curr_orderbook)],
+        topic: assetPair, partition: 0, messages: [JSON.stringify(curr_orderbook)],
         attributes: 0
       }], (err, result) => { });
+
     }
   }
 }
 
-const bitstamp_listener = new orderbook_listener(null);
-const bitstampOrderbook = new bitstamp_orderbook(bitstamp_listener);
-bitstamp_listener.set_listener(bitstampOrderbook.orderbook_manager);
+let previousConfig = null;
+let currentConfig = null;
+let listeners = {};
+let orderbooks = {};
 
-bitstampOrderbook.bind_all_channels();
+ConfigManager.init(DEFAULT_CONFIG, null, () => {
+  currentConfig = ConfigManager.getConfig();
+  let exchangeList = currentConfig.EXCHANGE_LIST;
+  for(let exchangeName of Object.keys(exchangeList)) {
+    initializeExchange(exchangeName, listeners, orderbooks, exchangeList[exchangeName]);
+  }
+});
 
-/* import bitfinex_orderbook from 'orderbook/bitfinex_orderbook';
+ConfigManager.setConfigChangeCallback('listener', () => {
+  logger.debug('Change configuration');
+  previousConfig = currentConfig;
+  currentConfig = ConfigManager.getConfig();
+  let diff = configDiff(previousConfig, currentConfig);
+  const actions = ['add', 'remove'];
+  for(let action of actions) {
+    for(let exchangeName of diff[action]) {
+      EXCHANGE_ACTIONS[action](exchangeName, listeners, orderbooks);
+      logger.debug(action + ' ' + exchangeName);
+    }
+    for(let exchangeName of Object.keys(diff.update[action])) {
+      for(let pair of diff.update[action][exchangeName]) {
+        logger.debug(action + ' orderbook: ' + exchangeName + ' - ' + pair);
+        EXCHANGE_ACTIONS[action + 'Pair'](exchangeName, orderbooks, pair);
+      }
+    }
+  }
+});
 
-let bitfinex_listener = new orderbook_listener(null);
-let bitfinexOrderbook = new bitfinex_orderbook(bitfinex_listener);
-bitfinex_listener.set_listener(bitfinexOrderbook.orderbook_manager);
 
-bitfinex_orderbook.init();
-bitfinex_orderbook.bind_all_channels(); */
+
+
+
+
+
+
+
+
+
+
+
+
+

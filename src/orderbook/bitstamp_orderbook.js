@@ -1,14 +1,24 @@
+import logger from 'logger';
 import Pusher from 'pusher-js';
 import orderbook_manager from 'orderbook/orderbook_manager';
+import { loggers } from '../../node_modules/winston';
 const pusher = new Pusher('de504dc5763aeef9ff52');
+const external_pairs = { 'BTC-USD': '', 'BCH-USD': '_bchusd' };
+const bitstamp_pairs = { '_btcusd': 'BTC-USD', '_bch_usd': 'BCH-USD' };
 
 class bitstamp_orderbook {
-  constructor(orderbook_listener) {
+  constructor(orderbook_listener, assetPairs) {
     this.reset_timestamp = 0;
-    this.ordersChannel = pusher.subscribe('live_orders');
-    this.orderBookChannel = pusher.subscribe('order_book');
-    this.orderDiffBookChannel = pusher.subscribe('diff_order_book');
-    this.orderbook_manager = new orderbook_manager(orderbook_listener);
+    this.required_pairs = null;
+    this.orderbook_channels = {};
+    // this.ordersChannel = pusher.subscribe('live_orders');
+    // this.orderBookChannel = pusher.subscribe('order_book_bchusd');
+    // this.orderDiffBookChannel = pusher.subscribe('diff_order_book');
+    this.orderbook_manager = new orderbook_manager(orderbook_listener, 'Bitstamp', assetPairs);
+  }
+
+  init() {
+    return;
   }
 
   normalize_order(data) {
@@ -29,26 +39,45 @@ class bitstamp_orderbook {
     };
   }
 
-  bind_channel(channel_name, cb) {
-    this.ordersChannel.bind(channel_name, function (data) {
-      cb(channel_name, data);
-    });
+  subscribe(assetPair) {
+    let bitstamp_pair = external_pairs[assetPair];
+    let pairIndex = this.orderbook_manager.requiredPairs.indexOf(assetPair);
+    if (pairIndex < 0)  this.orderbook_manager.requiredPairs.push(pairIndex);
+    if (bitstamp_pair ) this.orderbook_channels[assetPair] = pusher.subscribe('order_book' + bitstamp_pair);
+    else logger.debug(assetPair + ' is not defined in Bitstamp');
   }
 
   order_callback(channel_name, order) {
     // console.log(channel_name, order);
   }
 
-  bind_all_channels() {
-    const orderbook = this.orderbook_manager;
-    const normalize = this.normalize_order;
+  start() {
+    for(let assetPair of this.orderbook_manager.requiredPairs) {
+      let bitstamp_pair = external_pairs[assetPair];
+      if(bitstamp_pair !== null) {
+        this.orderbook_channels[assetPair] = pusher.subscribe('order_book' + bitstamp_pair);
+      }
+    }
+
+    const available_channels = Object.keys(this.orderbook_channels);
+    for(let assetPair of available_channels) {
+      this.orderbook_channels[assetPair].bind('data', data => {
+        const orderTypes = ['asks', 'bids'];
+        for (let orderType of orderTypes) {
+          for (let order of data[orderType]) {
+            this.orderbook_manager.add_order(this.normalize_orderbook_order(order, orderType), assetPair);
+          }
+        }
+        this.orderbook_manager.notify_orderbook_changed(assetPair);
+      });
+    }
     /* this.ordersChannel.bind('order_created', function (data) {
         //if (parseInt(data.datetime) > this.reset_timestamp)
         {
             console.log(new Date().getTime(), 'order added', JSON.stringify(data));
             orderbook.add_order(normalize(data));
         }
- 
+
     });
     this.ordersChannel.bind('order_deleted', function (data) {
         //if (parseInt(data.datetime) > this.reset_timestamp)
@@ -64,20 +93,6 @@ class bitstamp_orderbook {
             orderbook.change_order(normalize(data));
         }
     });*/
-    this.orderBookChannel.bind('data', data => {
-      const order_types = ['asks', 'bids'];
-      // console.log(JSON.stringify(data.bids[0]));
-      // console.log(new Date().getTime(), 'orderbook', JSON.stringify(data));
-      this.orderbook_manager.clear_orderbook();
-      for (let curr_type_index in order_types) {
-        for (let order_index in data[order_types[curr_type_index]]) {
-          this.orderbook_manager.add_order(
-            this.normalize_orderbook_order(data[order_types[curr_type_index]][order_index],
-              order_types[curr_type_index]));
-        }
-      }
-      this.orderbook_manager.notify_orderbook_changed();
-    });
     /* this.orderDiffBookChannel.bind('data', data =>
     {
         //console.log(new Date().getTime(), 'orderbook diff', data);
@@ -92,7 +107,7 @@ class bitstamp_orderbook {
         const response = await fetch(url);
         const orderbook = await response.json();
         bitstamp_orderbook_instance.reset_timestamp = orderbook.timestamp;
-        orderbook_manager.clear_orderbook();
+        orderbook_manager.clear_orderbook(this.required_pairs);
         let order_types = ['bids', 'asks'];
         for (let type_index in order_types) {
           let orderbook_counter = 0;
@@ -130,6 +145,19 @@ class bitstamp_orderbook {
     while (!curr.done) {
       console.log('bid', curr.value.key, curr.value.value.size);
       curr = iterator.next();
+    }
+  }
+
+  unsubscribe(pair) {
+    let bitstamp_pair = external_pairs(pair);
+    let pairIndex = this.orderbook_manager.requiredPairs.indexOf(pair);
+    if (pairIndex > -1)  this.orderbook_manager.requiredPairs.splice(pairIndex, 1);
+    pusher.unsubscribe('order_book' + bitstamp_pair);
+  }
+
+  stop() {
+    for(let assetPair of Object.keys(this.orderbook_channels)) {
+      pusher.unsubscribe('order_book' + external_pairs[assetPair]);
     }
   }
 }

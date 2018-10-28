@@ -2,23 +2,29 @@ import logger from 'logger';
 import SortedMap from 'collections/sorted-map';
 
 class orderbook_manager {
-  constructor(orderbook_listener) {
-    this.clear_orderbook();
+  constructor(orderbook_listener, exchange_name, assetPairs) {
+    this.requiredPairs = assetPairs;
+    this.clear_orderbook(this.requiredPairs);
     this.orderbook_listener = orderbook_listener;
+    this.exchange_name = exchange_name;
+    
   }
 
-  clear_orderbook() {
-    logger.debug('Clearing orderbook');
+  clear_orderbook(assetPairs) {
+    logger.debug('Clearing orderbook ');
+    this.orderbook = {};
     const price_compare_asc = (a, b) => (a < b ? 1 : (a > b ? -1 : 0));
     const price_compare_desc = (a, b) => (a > b ? 1 : (a < b ? -1 : 0));
-    this.orderbook = {
-      asks: new SortedMap(null, null, price_compare_desc),
-      bids: new SortedMap(null, null, price_compare_asc)
-    };
+    for(let assetPair of assetPairs) {
+      this.orderbook[assetPair] = {
+        asks: new SortedMap(null, null, price_compare_desc),
+        bids: new SortedMap(null, null, price_compare_asc)
+      };
+    }
   }
 
-  add_order(order) {
-    let orders_map = this.orderbook[order.type];
+  add_order(order, asset_pair) {
+    let orders_map = this.orderbook[asset_pair][order.type];
     delete order.type;
     let orders_in_curr_price = orders_map.get(order.price);
     let exchange_id = order.exchange_id;
@@ -35,9 +41,9 @@ class orderbook_manager {
     // this.print_orderbook();
   }
 
-  delete_order(order) {
+  delete_order(order, asset_pair) {
     logger.debug('Deleting order: %s', JSON.stringify(order));
-    let orders_map = this.orderbook[order.type];
+    let orders_map = this.orderbook[asset_pair][order.type];
     let orders_in_curr_price = orders_map.get(order.price);
     if (orders_in_curr_price != null)
     {
@@ -53,7 +59,7 @@ class orderbook_manager {
       {
         logger.debug('Didn\'t find order with id "%s", %s in price level %s', order.exchange_id, JSON.stringify(order), JSON.stringify(orders_in_curr_price));
       }
-      
+
       if (orders_in_curr_price.size == 0 || Object.keys(orders_in_curr_price.exchange_orders).length == 0)
       {
         orders_map.delete(order.price);
@@ -64,12 +70,12 @@ class orderbook_manager {
     {
       logger.debug('Didn\'t find order %s', JSON.stringify(order));
     }
-    this.print_orderbook();
+    // this.print_orderbook();
   }
 
-  change_order(order) {
+  change_order(order, asset_pair) {
     logger.debug('Changing order: %s', JSON.stringify(order));
-    let orders_map = this.orderbook[order.type];
+    let orders_map = this.orderbook[asset_pair][order.type];
     let orders_in_curr_price = orders_map.get(order.price);
     if (orders_in_curr_price != null)
     {
@@ -90,58 +96,63 @@ class orderbook_manager {
     {
       logger.debug('Didn\'t find order to change for order %s', JSON.stringify(order));
     }
-    //this.print_orderbook();
+    // this.print_orderbook();
   }
 
-  print_orderbook() {
+  print_orderbook(asset_pair) {
     // console.log('Printing asks:');
-    let asks = this.orderbook.asks;
-    let iterator = asks.iterate();
-    let curr = iterator.next();
-    let best_ask = [];
-    let counter = 0;
-    while (!curr.done && counter < 3) {
-      ++counter;
-      best_ask.push({ price: curr.value.key, size: curr.value.value.size });
-      logger.debug('ask %s %s', curr.value.key, curr.value.value.size);
-      curr = iterator.next();
+    if (asset_pair == null) {
+      return;
     }
-    // console.log("Printing bids:");
-    let bids = this.orderbook.bids;
-    iterator = bids.iterate();
-    curr = iterator.next();
-    let best_bid = [];
-    counter = 0;
-    while (!curr.done && counter < 3) {
-      ++counter;
-      best_bid.push({ price: curr.value.key, size: curr.value.value.size });
-      logger.debug('bid %s %s', curr.value.key, curr.value.value.size);
+    else {
+      let asks = this.orderbook[asset_pair].asks;
+      let iterator = asks.iterate();
+      let curr = iterator.next();
+      let best_ask = [];
+      let counter = 0;
+      while (!curr.done && counter < 3) {
+        ++counter;
+        best_ask.push({ price: curr.value.key, size: curr.value.value.size });
+        logger.debug('ask %s %s', curr.value.key, curr.value.value.size);
+        curr = iterator.next();
+      }
+      // console.log("Printing bids:");
+      let bids = this.orderbook[asset_pair].bids;
+      iterator = bids.iterate();
       curr = iterator.next();
+      let best_bid = [];
+      counter = 0;
+      while (!curr.done && counter < 3) {
+        ++counter;
+        best_bid.push({ price: curr.value.key, size: curr.value.value.size });
+        logger.debug('bid %s %s', curr.value.key, curr.value.value.size);
+        curr = iterator.next();
+      }
+      /* console.log('Ticker', 'asks', best_ask, 'bids', best_bid);
+      console.log('Ticker', 'bids', best_bid);*/
     }
-    /* console.log('Ticker', 'asks', best_ask, 'bids', best_bid);
-    console.log('Ticker', 'bids', best_bid);*/
   }
 
-  notify_orderbook_changed() {
+  notify_orderbook_changed(assetPair) {
     if (this.orderbook_listener) {
-      this.orderbook_listener.orderbook_changed();
+      this.orderbook_listener.orderbook_changed(assetPair);
     }
   }
 
-  get_orderbook(limit) {
+  get_orderbook(assetPair, limit) {
     if (limit == null)
     {
-      return this.orderbook;
+      return this.orderbook[assetPair];
     }
     else
     {
       let order_types = ['asks', 'bids'];
       let result_orderbook = {};
-      for (let order_type_index = 0; order_type_index < order_types.length; ++order_type_index)
+      for (let order_type of order_types)
       {
-        let type_limit = limit ? Math.min(limit, this.orderbook[order_types[order_type_index]].length) :
-          this.orderbook[order_types[order_type_index]].length;
-        let orders_iterator = this.orderbook[order_types[order_type_index]].iterate();
+        let type_limit = limit ? Math.min(limit, this.orderbook[assetPair][order_type].length) :
+          this.orderbook[assetPair][order_type].length;
+        let orders_iterator = this.orderbook[assetPair][order_type].iterate();
         let curr_order = orders_iterator.next();
         let curr_types_orders = [];
         for (let order_index = 0; order_index < type_limit && !curr_order.done; ++order_index)
@@ -149,7 +160,7 @@ class orderbook_manager {
           curr_types_orders.push(curr_order.value.value);
           curr_order = orders_iterator.next();
         }
-        result_orderbook[order_types[order_type_index]] = curr_types_orders;
+        result_orderbook[order_type] = curr_types_orders;
       }
       return result_orderbook;
     }
