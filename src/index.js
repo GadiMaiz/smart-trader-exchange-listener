@@ -26,7 +26,6 @@ export default class orderbook_listener {
   }
 
   orderbook_changed(assetPair) {
-    // TODO: Write to kafka only relevamt pair
     if (this.orderbook && producer_ready) {
       let curr_orderbook = this.orderbook.get_orderbook(assetPair, 10);
       curr_orderbook['time'] = Date.now();
@@ -54,6 +53,7 @@ ConfigManager.init(DEFAULT_CONFIG, null, () => {
 });
 
 ConfigManager.setConfigChangeCallback('listener', () => {
+  logger.debug('Change configuration');
   previousConfig = currentConfig;
   currentConfig = ConfigManager.getConfig();
   let diff = configDiff(previousConfig, currentConfig);
