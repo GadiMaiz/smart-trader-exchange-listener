@@ -44,7 +44,7 @@ let currentConfig = null;
 let listeners = {};
 let orderbooks = {};
 
-ConfigManager.init(DEFAULT_CONFIG, null, () => {
+ConfigManager.init(DEFAULT_CONFIG, '/config/exchanges.json', () => {
   currentConfig = ConfigManager.getConfig();
   let exchangeList = currentConfig.EXCHANGE_LIST;
   for(let exchangeName of Object.keys(exchangeList)) {
