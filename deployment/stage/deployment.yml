@@ -1,0 +1,24 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: stg-exchange-listener
+  namespace: smart-trade
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: stg-exchange-listener
+    spec:
+      nodeSelector:
+        application : services 
+      containers:
+      - name: stg-exchange-listener
+        image: gcr.io/infra-sublime-150907/exchange-listener:4.0
+        ports:
+          - containerPort: 7700
+        env:
+          - name: KAFKA_IP
+            value: "35.238.224.239"
+          - name: KAFKA_PORT
+            value: "2181"
