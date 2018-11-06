@@ -44,7 +44,7 @@ let currentConfig = null;
 let listeners = {};
 let orderbooks = {};
 
-ConfigManager.init(DEFAULT_CONFIG, '/config/exchanges.json', () => {
+ConfigManager.init(DEFAULT_CONFIG, './config_files/config.json' , () => {
   currentConfig = ConfigManager.getConfig();
   let exchangeList = currentConfig.EXCHANGE_LIST;
   for(let exchangeName of Object.keys(exchangeList)) {
@@ -59,6 +59,7 @@ ConfigManager.setConfigChangeCallback('listener', () => {
   let diff = configDiff(previousConfig, currentConfig);
   const actions = ['add', 'remove'];
   for(let action of actions) {
+    // TODO: Change string formatting
     for(let exchangeName of diff[action]) {
       EXCHANGE_ACTIONS[action](exchangeName, listeners, orderbooks);
       logger.debug(action + ' ' + exchangeName);

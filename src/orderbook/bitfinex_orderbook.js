@@ -6,6 +6,8 @@ const CRC = require('crc-32');
 const _ = require('lodash');
 const external_pairs = { 'BTC-USD': 'BTCUSD', 'BCH-USD': 'BCHUSD' };
 const bitfinex_pairs = { 'BTCUSD': 'BTC-USD', 'BCHUSD': 'BCH-USD' };
+const ORDERBOOK_LENGTH = 100;
+const CS_FLAG = 131072;
 
 class bitfinex_orderbook {
 
@@ -23,11 +25,13 @@ class bitfinex_orderbook {
       }
       catch(err) {
         logger.debug('Can\'t start server, retry...\n' + err);
+        // TODO: Add sleep between tries?
       }
     }
   }
 
   normalize_order(data) {
+    // Bitfinex order format: [id, price, size]
     const size = data[2];
     let new_order = {
       price: data[1], size: Math.abs(size),
@@ -39,15 +43,22 @@ class bitfinex_orderbook {
   }
 
   subscribe(assetPair) {
-    let pairIndex = this.orderbook_manager.requiredPairs.indexOf(assetPair);
-    if (pairIndex < 0)  this.orderbook_manager.requiredPairs.push(pairIndex);
-    this.orderbookSocket.send(JSON.stringify({ event: 'subscribe', channel: 'book', pair: assetPair, prec: 'R0', len: 100 }));
+    logger.debug(`Subscribe Bitfinex to ${assetPair} channel`);
+    // If asset pair is not in exchange's required pairs- add it
+    if (this.orderbook_manager.requiredPairs.indexOf(assetPair) < 0)  {
+      this.orderbook_manager.requiredPairs.push(assetPair);
+    }
+    this.orderbookSocket.send(JSON.stringify({ event: 'subscribe', channel: 'book', pair: assetPair, prec: 'R0', len: ORDERBOOK_LENGTH }));
   }
 
-  unsubscribe(pair) {
-    let channel_id = this.find_channel(pair);
-    let pairIndex = this.orderbook_manager.requiredPairs.indexOf(pair);
-    if (pairIndex > -1)  this.orderbook_manager.requiredPairs.splice(pairIndex, 1);
+  unsubscribe(assetPair) {
+    logger.debug(`Unsubscribe Bitfinex from ${assetPair} channel`);
+    let channel_id = this.find_channel(assetPair);
+    let pairIndex = this.orderbook_manager.requiredPairs.indexOf(assetPair);
+    // Remove assetPair from exchange's required pairs
+    if (pairIndex > -1)  {
+      this.orderbook_manager.requiredPairs.splice(pairIndex, 1);
+    }
     if (channel_id) {
       this.orderbookChannels[channel_id].active = false;
       this.orderbookSocket.send(JSON.stringify({ event: 'unsubscribe', chanId: channel_id }));
@@ -55,10 +66,12 @@ class bitfinex_orderbook {
   }
 
   start() {
+    logger.debug('Start Bitfiniex Exchange');
     this.orderbookSocket.on('open', () => {
-      this.orderbookSocket.send(JSON.stringify({ event: 'conf', flags: 131072 }));
-      for(let pair of this.orderbook_manager.requiredPairs) {
-        let bitfinexPair = external_pairs[pair];
+      // Sign up for checksum messages
+      this.orderbookSocket.send(JSON.stringify({ event: 'conf', flags: CS_FLAG }));
+      for(let assetPair of this.orderbook_manager.requiredPairs) {
+        let bitfinexPair = external_pairs[assetPair];
         if (bitfinexPair)
           this.subscribe(bitfinexPair);
       }
@@ -67,7 +80,9 @@ class bitfinex_orderbook {
     this.orderbookSocket.on('message', (message) => {
       message = JSON.parse(message);
       if (message.event) {
-        if (message.event === 'error') logger.debug(message.msg);
+        if (message.event === 'error') {
+          logger.error(`Bitfinex Error: ${message.msg}`);
+        }
         if (message.event === 'subscribed' && message.channel === 'book') {
           this.orderbookChannels[message.chanId] = { pair: bitfinex_pairs[message.pair], snapshot_received: false, id_to_price: {}, active: true };
         }
@@ -92,12 +107,16 @@ class bitfinex_orderbook {
     // console.log(channel_name, order);
   }
 
-  
-
+  // Data message is of the form [channelId, message]
+  // First message recieved is snapshot, comprised of array of orders
+  // Order message is in the form [id, price, size]
+  // price == 0 -> delete order, price > 0 -> add or update
+  // size < 0 -> asks, size > 0 -> bids
   handle_data_message(message) {
-    this.order = message;
+    logger.debug(`Bitfinex data mesage received: %s`, message);
     const channel_id = message[0];
     if (this.orderbookChannels[channel_id] && !this.orderbookChannels[channel_id].active) {
+      logger.debug('Channel %s is inactive, deleting', channel_id);
       delete this.orderbookChannels[channel_id];
     } else if (this.orderbookChannels[channel_id]) {
       let channel_metadata = this.orderbookChannels[channel_id];
@@ -129,9 +148,12 @@ class bitfinex_orderbook {
     }
   }
 
+  // Checksum is calculated over the top 25 orders in the orderbook
   handle_checksum_message(message) {
     let channel = message[0];
-    if (this.orderbookChannels[channel] && !this.orderbookChannels[channel].active) {
+    const assetPair = this.orderbookChannels[channel].pair;
+    logger.debug('Bitfinex checksum message %s', assetPair);
+    if (this.orderbookChannels[channel] && this.orderbookChannels[channel].active) {
       let checksum = message[2];
       let checksumData = [];
       let currentOrderbook = this.orderbook_manager.get_orderbook(this.orderbookChannels[channel].pair, 25);
@@ -145,25 +167,26 @@ class bitfinex_orderbook {
       const checksumString = checksumData.join(':');
       const checksumCalculation = CRC.str(checksumString);
       if (checksum !== checksumCalculation) {
-        logger.debug('checksum failed - reset orderbook');
+        logger.warn(`Bitfinex checksum failed. Reset ${assetPair} orderbook`);
         this.reset_orderbook(channel);
+        return false;
       }
     }
+    return true;
   }
 
+  // Return orderbook to it's original format
   expand_orderbook(orderbook) {
-    let new_orderbook = { 'bids': [], 'asks': [] };
-    const order_types = ['asks', 'bids'];
-    for(let order_type_index = 0; order_type_index < order_types.length ; order_type_index ++) {
-      for(let i = 0 ; i < orderbook[order_types[order_type_index]].length ; i++) {
-        let order_ids = Object.keys(orderbook[order_types[order_type_index]][i].exchange_orders);
-        for(let order_id_index = 0 ; order_id_index < order_ids.length ; order_id_index++) {
-          new_orderbook[order_types[order_type_index]].push({ id: order_ids[order_id_index],
-            size: orderbook[order_types[order_type_index]][i].exchange_orders[order_ids[order_id_index]].size });
+    let newOrderbook = { 'bids': [], 'asks': [] };
+    const orderTypes = ['asks', 'bids'];
+    for(let orderType of orderTypes) {
+      for(let priceLevel of Object.keys(orderbook[orderType])) {
+        for(let orderId of Object.keys(orderbook[orderType][priceLevel].exchange_orders)) {
+          newOrderbook[orderType].push({ id: orderId, size: orderbook[orderType][priceLevel].exchange_orders[orderId].size });
         }
       }
     }
-    return new_orderbook;
+    return newOrderbook;
   }
 
   order_exists(order, asset_pair) {
@@ -177,8 +200,8 @@ class bitfinex_orderbook {
   reset_orderbook(channel_id) {
     this.orderbookChannels[channel_id].active = false;
     this.orderbookSocket.send(JSON.stringify({ event: 'unsubscribe', chanId: channel_id }));
-    let bitfinex_pair = external_pairs[this.orderbookChannels[channel_id].pair];
-    this.orderbookSocket.send(JSON.stringify({ event: 'subscribe', channel: 'book', pair: bitfinex_pair, prec: 'R0', len: 100 }));
+    let bitfinexPair = external_pairs[this.orderbookChannels[channel_id].pair];
+    this.subscribe(bitfinexPair);
   }
 
   print_orderbook(orderbook) {
@@ -189,22 +212,6 @@ class bitfinex_orderbook {
     for(let channel_id of Object.keys(this.orderbookChannels)) {
       if (this.orderbookChannels[channel_id].pair === pair) return channel_id;
     }
-  }
-
-  verify_data_correctness() {
-    console.log('Verify Bitfinex orderbook');
-    Request.get(
-      `https://api.bitfinex.com/v2/book/tBTCUSD/R0`,
-      (error, response, body) => {
-        let current_snapshot =  [];
-        // body.forEach(order => current_snapshot.push(order.slice(1)));
-        // console.log(body);
-        let current_orderbook = this.denormalize_orderbook(this.orderbook_manager.get_orderbook(25));
-        const xor_result = _.xorWith(current_snapshot, current_orderbook, _.isEqual);
-        if (xor_result.length === 0) return true;
-        return false;
-      }
-    );
   }
 
 }

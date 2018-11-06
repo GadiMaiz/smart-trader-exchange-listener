@@ -30,6 +30,7 @@ export const EXCHANGE_ACTIONS = {
 
 export const initializeExchange = (exchangeName, listeners, orderbooks, assetPairs) => {
   let exchangeOrderbook = exchangeName.toLowerCase() + '_orderbook';
+  logger.debug(`Initialize exchange ${exchangeName} - ${assetPairs}`);
   if (ORDERBOOKS[exchangeOrderbook]) {
     listeners[exchangeName] = new orderbook_listener(null);
     orderbooks[exchangeName] = new DynamicOrderbook(exchangeOrderbook, listeners[exchangeName], assetPairs);
@@ -37,7 +38,7 @@ export const initializeExchange = (exchangeName, listeners, orderbooks, assetPai
     orderbooks[exchangeName].init();
     orderbooks[exchangeName].start();
   }
-  else logger.debug(exchangeName + ' is not supported yet');
+  else logger.warn(`${exchangeName} is not supported yet`);
 };
 
 export const stopExchange = (exchangeName, listeners, orderbooks) => {
