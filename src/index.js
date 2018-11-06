@@ -59,14 +59,13 @@ ConfigManager.setConfigChangeCallback('listener', () => {
   let diff = configDiff(previousConfig, currentConfig);
   const actions = ['add', 'remove'];
   for(let action of actions) {
-    // TODO: Change string formatting
     for(let exchangeName of diff[action]) {
       EXCHANGE_ACTIONS[action](exchangeName, listeners, orderbooks);
-      logger.debug(action + ' ' + exchangeName);
+      logger.debug('%s %s', action, exchangeName);
     }
     for(let exchangeName of Object.keys(diff.update[action])) {
       for(let pair of diff.update[action][exchangeName]) {
-        logger.debug(action + ' orderbook: ' + exchangeName + ' - ' + pair);
+        logger.debug('%s orderbook %s - %s',action, exchangeName, pair);
         EXCHANGE_ACTIONS[action + 'Pair'](exchangeName, orderbooks, pair);
       }
     }

@@ -1,19 +1,27 @@
 import logger from 'logger';
 import Pusher from 'pusher-js';
 import orderbook_manager from 'orderbook/orderbook_manager';
-import { loggers } from '../../node_modules/winston';
+import ConfigManager from 'node-config-module';
+
 const pusher = new Pusher('de504dc5763aeef9ff52');
-const external_pairs = { 'BTC-USD': '', 'BCH-USD': '_bchusd' };
-const bitstamp_pairs = { '_btcusd': 'BTC-USD', '_bch_usd': 'BCH-USD' };
+const DEFAULT_BSTMP_CONFIG = {
+  INTERNAL_PAIRS: { 'BTC-USD': '', 'BCH-USD': '_bchusd' }
+};
+
+let conf = DEFAULT_BSTMP_CONFIG;
+ConfigManager.init(DEFAULT_BSTMP_CONFIG, '../../config_files/bitstamp_config.json', () => {
+  conf = ConfigManager.getConfig();
+});
+
+ConfigManager.setConfigChangeCallback('bitstamp', () => {
+  conf = ConfigManager.getConfig();
+});
 
 class bitstamp_orderbook {
   constructor(orderbook_listener, assetPairs) {
     this.reset_timestamp = 0;
     this.required_pairs = null;
     this.orderbook_channels = {};
-    // this.ordersChannel = pusher.subscribe('live_orders');
-    // this.orderBookChannel = pusher.subscribe('order_book_bchusd');
-    // this.orderDiffBookChannel = pusher.subscribe('diff_order_book');
     this.orderbook_manager = new orderbook_manager(orderbook_listener, 'Bitstamp', assetPairs);
   }
 
@@ -40,11 +48,11 @@ class bitstamp_orderbook {
   }
 
   subscribe(assetPair) {
-    let bitstamp_pair = external_pairs[assetPair];
+    let bitstamp_pair = conf.INTERNAL_PAIRS[assetPair];
     let pairIndex = this.orderbook_manager.requiredPairs.indexOf(assetPair);
     if (pairIndex < 0)  this.orderbook_manager.requiredPairs.push(pairIndex);
     if (bitstamp_pair ) this.orderbook_channels[assetPair] = pusher.subscribe('order_book' + bitstamp_pair);
-    else logger.debug(assetPair + ' is not defined in Bitstamp');
+    else logger.warn('$s is not defined in Bitstamp', assetPair);
   }
 
   order_callback(channel_name, order) {
@@ -53,7 +61,7 @@ class bitstamp_orderbook {
 
   start() {
     for(let assetPair of this.orderbook_manager.requiredPairs) {
-      let bitstamp_pair = external_pairs[assetPair];
+      let bitstamp_pair = conf.INTERNAL_PAIRS[assetPair];
       if(bitstamp_pair !== null) {
         this.orderbook_channels[assetPair] = pusher.subscribe('order_book' + bitstamp_pair);
       }
@@ -71,32 +79,6 @@ class bitstamp_orderbook {
         this.orderbook_manager.notify_orderbook_changed(assetPair);
       });
     }
-    /* this.ordersChannel.bind('order_created', function (data) {
-        //if (parseInt(data.datetime) > this.reset_timestamp)
-        {
-            console.log(new Date().getTime(), 'order added', JSON.stringify(data));
-            orderbook.add_order(normalize(data));
-        }
-
-    });
-    this.ordersChannel.bind('order_deleted', function (data) {
-        //if (parseInt(data.datetime) > this.reset_timestamp)
-        {
-            console.log(new Date().getTime(), 'order deleted', JSON.stringify(data));
-            orderbook.delete_order(normalize(data));
-        }
-    });
-    this.ordersChannel.bind('order_changed', function (data) {
-        //if (parseInt(data.datetime) > this.reset_timestamp)
-        {
-            console.log(new Date().getTime(), 'order changed', JSON.stringify(data));
-            orderbook.change_order(normalize(data));
-        }
-    });*/
-    /* this.orderDiffBookChannel.bind('data', data =>
-    {
-        //console.log(new Date().getTime(), 'orderbook diff', data);
-    })*/
   }
 
   reset_orderbook(bitstamp_orderbook_instance) {
@@ -108,14 +90,14 @@ class bitstamp_orderbook {
         const orderbook = await response.json();
         bitstamp_orderbook_instance.reset_timestamp = orderbook.timestamp;
         orderbook_manager.clear_orderbook(this.required_pairs);
-        let order_types = ['bids', 'asks'];
-        for (let type_index in order_types) {
+        let orderTypes = ['bids', 'asks'];
+        for (let orderType of orderTypes) {
           let orderbook_counter = 0;
-          for (let curr_bid in orderbook[order_types[type_index]]) {
+          for (let curr_bid in orderbook[orderType]) {
             orderbook_counter++;
             orderbook_manager.add_order(bitstamp_orderbook_instance.normalize_orderbook_order(
-              orderbook[order_types[type_index]][curr_bid],
-              order_types[type_index]));
+              orderbook[orderType][curr_bid],
+              orderType));
             if (orderbook_counter > 9) {
               break;
             }
@@ -149,7 +131,7 @@ class bitstamp_orderbook {
   }
 
   unsubscribe(pair) {
-    let bitstamp_pair = external_pairs(pair);
+    let bitstamp_pair = conf.INTERNAL_PAIRS(pair);
     let pairIndex = this.orderbook_manager.requiredPairs.indexOf(pair);
     if (pairIndex > -1)  this.orderbook_manager.requiredPairs.splice(pairIndex, 1);
     pusher.unsubscribe('order_book' + bitstamp_pair);
@@ -157,7 +139,7 @@ class bitstamp_orderbook {
 
   stop() {
     for(let assetPair of Object.keys(this.orderbook_channels)) {
-      pusher.unsubscribe('order_book' + external_pairs[assetPair]);
+      pusher.unsubscribe('order_book' + conf.INTERNAL_PAIRS[assetPair]);
     }
   }
 }

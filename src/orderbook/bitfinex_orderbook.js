@@ -1,13 +1,20 @@
 import WebSocket from 'ws';
 import logger from 'logger';
 import orderbook_manager from 'orderbook/orderbook_manager';
-import Request from 'request';
-const CRC = require('crc-32');
-const _ = require('lodash');
-const external_pairs = { 'BTC-USD': 'BTCUSD', 'BCH-USD': 'BCHUSD' };
-const bitfinex_pairs = { 'BTCUSD': 'BTC-USD', 'BCHUSD': 'BCH-USD' };
-const ORDERBOOK_LENGTH = 100;
-const CS_FLAG = 131072;
+import ConfigManager from 'node-config-module';
+import CRC from 'crc-32';
+
+const DEFAULT_BFX_CONFIG = {
+  INTERNAL_PAIRS: { 'BTC-USD': 'BTCUSD', 'BCH-USD': 'BCHUSD' },
+  EXTERNAL_PAIRS: { 'BTCUSD': 'BTC-USD', 'BCHUSD': 'BCH-USD' },
+  ORDERBOOK_LENGTH: 100,
+  CS_FLAG: 131072
+};
+
+let conf = DEFAULT_BFX_CONFIG;
+ConfigManager.init(DEFAULT_BFX_CONFIG, '../../config_files/bitfinex_config.json', () => {
+  conf = ConfigManager.getConfig();
+});
 
 class bitfinex_orderbook {
 
@@ -43,16 +50,16 @@ class bitfinex_orderbook {
   }
 
   subscribe(assetPair) {
-    logger.debug(`Subscribe Bitfinex to ${assetPair} channel`);
+    logger.debug(`Subscribe Bitfinex to %s channel`, assetPair);
     // If asset pair is not in exchange's required pairs- add it
     if (this.orderbook_manager.requiredPairs.indexOf(assetPair) < 0)  {
       this.orderbook_manager.requiredPairs.push(assetPair);
     }
-    this.orderbookSocket.send(JSON.stringify({ event: 'subscribe', channel: 'book', pair: assetPair, prec: 'R0', len: ORDERBOOK_LENGTH }));
+    this.orderbookSocket.send(JSON.stringify({ event: 'subscribe', channel: 'book', pair: assetPair, prec: 'R0', len: conf.ORDERBOOK_LENGTH }));
   }
 
   unsubscribe(assetPair) {
-    logger.debug(`Unsubscribe Bitfinex from ${assetPair} channel`);
+    logger.debug(`Unsubscribe Bitfinex from %s channel`, assetPair);
     let channel_id = this.find_channel(assetPair);
     let pairIndex = this.orderbook_manager.requiredPairs.indexOf(assetPair);
     // Remove assetPair from exchange's required pairs
@@ -69,9 +76,9 @@ class bitfinex_orderbook {
     logger.debug('Start Bitfiniex Exchange');
     this.orderbookSocket.on('open', () => {
       // Sign up for checksum messages
-      this.orderbookSocket.send(JSON.stringify({ event: 'conf', flags: CS_FLAG }));
+      this.orderbookSocket.send(JSON.stringify({ event: 'conf', flags: conf.CS_FLAG }));
       for(let assetPair of this.orderbook_manager.requiredPairs) {
-        let bitfinexPair = external_pairs[assetPair];
+        let bitfinexPair = conf.INTERNAL_PAIRS[assetPair];
         if (bitfinexPair)
           this.subscribe(bitfinexPair);
       }
@@ -84,7 +91,7 @@ class bitfinex_orderbook {
           logger.error(`Bitfinex Error: ${message.msg}`);
         }
         if (message.event === 'subscribed' && message.channel === 'book') {
-          this.orderbookChannels[message.chanId] = { pair: bitfinex_pairs[message.pair], snapshot_received: false, id_to_price: {}, active: true };
+          this.orderbookChannels[message.chanId] = { pair: conf.EXTERNAL_PAIRS[message.pair], snapshot_received: false, id_to_price: {}, active: true };
         }
         return;
       }
@@ -200,7 +207,7 @@ class bitfinex_orderbook {
   reset_orderbook(channel_id) {
     this.orderbookChannels[channel_id].active = false;
     this.orderbookSocket.send(JSON.stringify({ event: 'unsubscribe', chanId: channel_id }));
-    let bitfinexPair = external_pairs[this.orderbookChannels[channel_id].pair];
+    let bitfinexPair = conf.INTERNAL_PAIRS[this.orderbookChannels[channel_id].pair];
     this.subscribe(bitfinexPair);
   }
 
