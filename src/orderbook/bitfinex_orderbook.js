@@ -161,28 +161,28 @@ class bitfinex_orderbook {
 
   // Checksum is calculated over the top 25 orders in the orderbook
   handle_checksum_message(message) {
-    let channel = message[0];
-    const assetPair = this.orderbookChannels[channel].pair;
-    logger.debug('Bitfinex checksum message %s on channel %s', assetPair, channel);
-    if (this.orderbookChannels[channel] && this.orderbookChannels[channel].active) {
-      let checksum = message[2];
-      let checksumData = [];
-      let currentOrderbook = this.orderbook_manager.get_orderbook(this.orderbookChannels[channel].pair, 25);
-      currentOrderbook = this.expand_orderbook(currentOrderbook);
-      let bids = currentOrderbook['bids'].toArray();
-      let asks = currentOrderbook['asks'].toArray();
-      for (let i = 0; i < 25; i++) {
-        if (bids[i]) checksumData.push(bids[i].id, bids[i].size);
-        if (asks[i]) checksumData.push(asks[i].id, -asks[i].size);
-      }
-      const checksumString = checksumData.join(':');
-      const checksumCalculation = CRC.str(checksumString);
-      if (checksum !== checksumCalculation) {
-        logger.warn(`Bitfinex checksum failed on channel %s. Reset %s orderbook`, channel, assetPair);
-        this.reset_orderbook(channel, assetPair);
-        return false;
-      }
-    }
+    // let channel = message[0];
+    // const assetPair = this.orderbookChannels[channel].pair;
+    // logger.debug('Bitfinex checksum message %s on channel %s', assetPair, channel);
+    // if (this.orderbookChannels[channel] && this.orderbookChannels[channel].active) {
+    //   let checksum = message[2];
+    //   let checksumData = [];
+    //   let currentOrderbook = this.orderbook_manager.get_orderbook(this.orderbookChannels[channel].pair, 25);
+    //   currentOrderbook = this.expand_orderbook(currentOrderbook);
+    //   let bids = currentOrderbook['bids'].toArray();
+    //   let asks = currentOrderbook['asks'].toArray();
+    //   for (let i = 0; i < 25; i++) {
+    //     if (bids[i]) checksumData.push(bids[i].id, bids[i].size);
+    //     if (asks[i]) checksumData.push(asks[i].id, -asks[i].size);
+    //   }
+    //   const checksumString = checksumData.join(':');
+    //   const checksumCalculation = CRC.str(checksumString);
+    //   if (checksum !== checksumCalculation) {
+    //     logger.warn(`Bitfinex checksum failed on channel %s. Reset %s orderbook`, channel, assetPair);
+    //     this.reset_orderbook(channel, assetPair);
+    //     return false;
+    //   }
+    // }
     return true;
   }
 
@@ -209,6 +209,7 @@ class bitfinex_orderbook {
   }
 
   reset_orderbook(channel_id, assetPair) {
+    logger.debug('Bitfinex reset orderbook %s on channel %s', assetPair, channel_id);
     if(this.orderbookChannels[channel_id]) {
       this.orderbookChannels[channel_id].active = false;
     }
