@@ -16,6 +16,10 @@ ConfigManager.init(DEFAULT_BFX_CONFIG, '../../config_files/bitfinex_config.json'
   conf = ConfigManager.getConfig();
 });
 
+ConfigManager.setConfigChangeCallback('bitfinex', () => {
+  conf = ConfigManager.getConfig();
+});
+
 class bitfinex_orderbook {
 
   constructor(orderbook_listener, assetPairs) {
@@ -91,6 +95,7 @@ class bitfinex_orderbook {
           logger.error(`Bitfinex Error: ${message.msg}`);
         }
         if (message.event === 'subscribed' && message.channel === 'book') {
+          logger.debug('Bitfinex subscribed to %s at channel %s', conf.EXTERNAL_PAIRS[message.pair], message.chanId);
           this.orderbookChannels[message.chanId] = { pair: conf.EXTERNAL_PAIRS[message.pair], snapshot_received: false, id_to_price: {}, active: true };
         }
         return;
@@ -108,8 +113,6 @@ class bitfinex_orderbook {
     // console.log(order, type);
   }
 
-  
-
   order_callback(channel_name, order) {
     // console.log(channel_name, order);
   }
@@ -124,6 +127,7 @@ class bitfinex_orderbook {
     const channel_id = message[0];
     if (this.orderbookChannels[channel_id] && !this.orderbookChannels[channel_id].active) {
       logger.debug('Channel %s is inactive, deleting', channel_id);
+      this.orderbookSocket.send(JSON.stringify({ event: 'unsubscribe', chanId: channel_id }));
       delete this.orderbookChannels[channel_id];
     } else if (this.orderbookChannels[channel_id]) {
       let channel_metadata = this.orderbookChannels[channel_id];
@@ -159,7 +163,7 @@ class bitfinex_orderbook {
   handle_checksum_message(message) {
     let channel = message[0];
     const assetPair = this.orderbookChannels[channel].pair;
-    logger.debug('Bitfinex checksum message %s', assetPair);
+    logger.debug('Bitfinex checksum message %s on channel %s', assetPair, channel);
     if (this.orderbookChannels[channel] && this.orderbookChannels[channel].active) {
       let checksum = message[2];
       let checksumData = [];
@@ -174,8 +178,8 @@ class bitfinex_orderbook {
       const checksumString = checksumData.join(':');
       const checksumCalculation = CRC.str(checksumString);
       if (checksum !== checksumCalculation) {
-        logger.warn(`Bitfinex checksum failed. Reset ${assetPair} orderbook`);
-        this.reset_orderbook(channel);
+        logger.warn(`Bitfinex checksum failed on channel %s. Reset %s orderbook`, channel, assetPair);
+        this.reset_orderbook(channel, assetPair);
         return false;
       }
     }
@@ -204,11 +208,12 @@ class bitfinex_orderbook {
     return false;
   }
 
-  reset_orderbook(channel_id) {
-    this.orderbookChannels[channel_id].active = false;
+  reset_orderbook(channel_id, assetPair) {
+    if(this.orderbookChannels[channel_id]) {
+      this.orderbookChannels[channel_id].active = false;
+    }
     this.orderbookSocket.send(JSON.stringify({ event: 'unsubscribe', chanId: channel_id }));
-    let bitfinexPair = conf.INTERNAL_PAIRS[this.orderbookChannels[channel_id].pair];
-    this.subscribe(bitfinexPair);
+    this.subscribe(conf.INTERNAL_PAIRS[assetPair]);
   }
 
   print_orderbook(orderbook) {
