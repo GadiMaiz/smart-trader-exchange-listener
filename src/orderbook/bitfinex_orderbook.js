@@ -213,6 +213,7 @@ class bitfinex_orderbook {
       this.orderbookChannels[channel_id].active = false;
     }
     this.orderbookSocket.send(JSON.stringify({ event: 'unsubscribe', chanId: channel_id }));
+    delete this.orderbookChannels[channel_id];
     this.subscribe(conf.INTERNAL_PAIRS[assetPair]);
   }
 
