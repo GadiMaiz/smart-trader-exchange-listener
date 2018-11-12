@@ -30,6 +30,7 @@ export default class orderbook_listener {
       let curr_orderbook = this.orderbook.get_orderbook(assetPair, 10);
       curr_orderbook['time'] = Date.now();
       curr_orderbook['exchange'] = this.orderbook.exchange_name;
+      curr_orderbook['assetPair'] = assetPair;
       producer.send([{
         topic: assetPair, partition: 0, messages: [JSON.stringify(curr_orderbook)],
         attributes: 0
