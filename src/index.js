@@ -1,89 +1,54 @@
 import logger from 'logger';
-import argv from 'optimist';
-import { Producer, Client } from 'kafka-node';
+import * as  _ from 'lodash';
 import ConfigManager from 'node-config-module';
-import { initializeExchange, DEFAULT_CONFIG, configDiff, EXCHANGE_ACTIONS } from './helper';
+import { initializeExchange, configDiff, EXCHANGE_ACTIONS } from './helper';
+import { DEFAULT_CONFIG } from './constants';
+import { Producer } from './kafka';
 
-process.title = ['Smart Trade Exchange Listener'];
+process.title = ['Smart_Trade_Exchange_Listener'];
 
-const kafka_ip = argv.kafka_ip || process.env.KAFKA_IP || 'localhost';
-const kafka_port = argv.kafka_port || process.env.KAFKA_PORT || '2181';
-const client = new Client(kafka_ip + ':' + kafka_port);
-const producer = new Producer(client);
-let producer_ready = false;
+logger.info('Starting exchange listener');
 
-producer.on('ready', () => {
-  producer_ready = true;
+const listeners = {};
+const orderbooks = {};
+let producer;
+
+
+ConfigManager.setConfigChangeCallback('log', function (newConfig, prevConfig) {
+  const { LOG_LEVEL, LOG_MAX_FILE_SIZE, LOG_MAX_FILES } = newConfig.LOG;
+  logger.updateLogConfig(LOG_LEVEL, LOG_MAX_FILE_SIZE, LOG_MAX_FILES);
 });
+ConfigManager.init(DEFAULT_CONFIG, null, async (err, config) => {
 
-export default class orderbook_listener {
-  constructor(orderbook) {
-    this.set_listener(orderbook);
-  }
+  const { ENDPOINT, TOPICS } = config.KAFKA;
+  producer = new Producer(ENDPOINT, TOPICS);
+  await producer.init();
 
-  set_listener(orderbook) {
-    this.orderbook = orderbook;
-  }
+  logger.info('start_listening');
 
-  orderbook_changed(assetPair) {
-    if (this.orderbook && producer_ready) {
-      let curr_orderbook = this.orderbook.get_orderbook(assetPair, 10);
-      curr_orderbook['time'] = Date.now();
-      curr_orderbook['exchange'] = this.orderbook.exchange_name;
-      curr_orderbook['assetPair'] = assetPair;
-      producer.send([{
-        topic: assetPair, partition: 0, messages: [JSON.stringify(curr_orderbook)],
-        attributes: 0
-      }], (err, result) => { });
-
-    }
-  }
-}
-
-let previousConfig = null;
-let currentConfig = null;
-let listeners = {};
-let orderbooks = {};
-
-ConfigManager.init(DEFAULT_CONFIG, './config_files/config.json' , () => {
-  currentConfig = ConfigManager.getConfig();
-  let exchangeList = currentConfig.EXCHANGE_LIST;
-  for(let exchangeName of Object.keys(exchangeList)) {
-    initializeExchange(exchangeName, listeners, orderbooks, exchangeList[exchangeName]);
-  }
-});
-
-ConfigManager.setConfigChangeCallback('listener', () => {
-  logger.debug('Change configuration');
-  previousConfig = currentConfig;
-  currentConfig = ConfigManager.getConfig();
-  let diff = configDiff(previousConfig, currentConfig);
-  const actions = ['add', 'remove'];
-  for(let action of actions) {
-    for(let exchangeName of diff[action]) {
-      EXCHANGE_ACTIONS[action](exchangeName, listeners, orderbooks);
-      logger.debug('%s %s', action, exchangeName);
-    }
-    for(let exchangeName of Object.keys(diff.update[action])) {
-      for(let pair of diff.update[action][exchangeName]) {
-        logger.debug('%s orderbook %s - %s',action, exchangeName, pair);
-        EXCHANGE_ACTIONS[action + 'Pair'](exchangeName, orderbooks, pair);
+  // set hooks for config changes
+  ConfigManager.setConfigChangeCallback('listener', (newConfig, prevConfig) => {
+    logger.debug('Change configuration');
+    const diff = configDiff(newConfig.EXCHANGE_LIST, prevConfig.EXCHANGE_LIST);
+    const actions = ['add', 'remove'];
+    let exchangeList = newConfig.EXCHANGE_LIST;
+    for (let action of actions) {
+      for (let exchangeName of diff[action]) {
+        EXCHANGE_ACTIONS[action](exchangeName, listeners, orderbooks, exchangeList[exchangeName], producer);
+        logger.debug('%s %s', action, exchangeName);
+      }
+      for (let exchangeName of Object.keys(diff.update[action])) {
+        for (let pair of diff.update[action][exchangeName]) {
+          logger.debug('%s orderbook %s - %s', action, exchangeName, pair);
+          EXCHANGE_ACTIONS[action + 'Pair'](exchangeName, orderbooks, pair);
+        }
       }
     }
+  });
+
+  // initialize exchanges
+  let exchangeList = config.EXCHANGE_LIST;
+  for (let exchangeName of Object.keys(exchangeList)) {
+    initializeExchange(exchangeName, listeners, orderbooks, exchangeList[exchangeName], producer);
   }
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

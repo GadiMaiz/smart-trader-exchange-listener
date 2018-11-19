@@ -1,10 +1,12 @@
 {
-    "ORDERBOOK_LENGTH": 100,
-    "CS_FLAG": 131072,
-    "INTERNAL_PAIRS": { 
-        "BTC-USD": "BTCUSD", 
-        "BCH-USD": "BCHUSD" },
-    "EXTERNAL_PAIRS": { 
-        "BTCUSD": "BTC-USD",
-        "BCHUSD": "BCH-USD" }
+   "INTERNAL_PAIRS": {
+      "BTC-USD": "BTCUSD",
+      "BCH-USD": "BCHUSD"
+   },
+   "EXTERNAL_PAIRS": {
+      "BTCUSD": "BTC-USD",
+      "BCHUSD": "BCH-USD"
+   },
+   "ORDERBOOK_LENGTH": 100,
+   "CS_FLAG": 131072
 }

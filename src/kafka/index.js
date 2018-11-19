@@ -1,0 +1,1 @@
+exports.Producer = require('./producer').default;

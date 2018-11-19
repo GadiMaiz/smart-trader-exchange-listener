@@ -4,8 +4,8 @@
   "description": "Smart Trade Exchange Listener",
   "main": "lib/index.js",
   "scripts": {
-    "start": "nodemon --inspect  ./src/index.js --exec babel-node",
-    "build": "babel src -d lib",
+    "start": "nodemon ./src/index.js -e js,raml --exec babel-node",
+    "build": "babel src --out-dir lib --copy-files --ignore **/*.spec.js",
     "run:prod": "node .",
     "test": "nyc --temp-directory coverage --reporter=html --reporter=text --exclude '**/*.spec.js' mocha --require babel-register  ./src/**/*.spec.js --require babel-core/register --coverage",
     "lint": "eslint --ignore-path ./config/.eslintignore --config ./config/.eslintrc.json ."
@@ -50,9 +50,11 @@
   "dependencies": {
     "collections": "^5.1.5",
     "crc-32": "^1.2.0",
-    "kafka-node": "^2.6.1",
+    "kafka-node": "^3.0.1",
+    "lodash": "^4.17.11",
     "node-config-module": "git+https://github.com/bitmain-israel/node-config-module",
     "optimist": "^0.6.1",
+    "osprey": "^0.5.0",
     "pusher-js": "^4.3.0",
     "request": "^2.88.0",
     "sinon": "^6.2.0",

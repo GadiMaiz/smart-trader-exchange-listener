@@ -1,23 +1,40 @@
-import logger from 'logger';
-
-class Server {
-  constructor() {
-
+import * as path from 'path';
+import osprey from 'osprey';
+import express from 'express';
+import bodyParser from 'body-parser';
+import log from 'logger';
+import errorHandler from './middlewares/errorHandler';
+import api from './routes/api';
+export default class Server {
+  constructor(config) {
+    this.config = config;
   }
+  async start(cb) {
+    if (!this.config || !this.config.HTTP_PORT)
+      throw new Error('Listener web server: Invalid config');
 
-  start() {
-    logger.info('starting server...');
-  }
+    const app = express();
 
-  stop() {
-    logger.info('server is going down...');
-  }
+    // assign middlewares
+    app.use(bodyParser.json());
+    app.use(bodyParser.urlencoded({ extended: true }));
 
-  getClientNum() {
-    return 5;
+    try {
+      const ramlMiddleware = await osprey.loadFile(path.join(__dirname, '/routes/raml/api.raml'));
+      app.use(ramlMiddleware);
+    }
+    catch (err) {
+      log.error(err);
+    }
+
+    // routing
+    app.use('/api', api);
+    app.use(errorHandler);
+    const http = require('http');
+    this.service = http.createServer(app).listen(this.config.HTTP_PORT, null, () => {
+      const port = this.service.address().port;
+      log.info(`Exchange listener web server is listening at: localhost:${port}.`);
+      if (cb) cb(null, this);
+    });
   }
 }
-
-const server = new Server();
-
-export default server;

@@ -63,5 +63,6 @@ typings/
 # build folder
 lib
 
-# configuration file
+# configuration files
+config_files
 config.json

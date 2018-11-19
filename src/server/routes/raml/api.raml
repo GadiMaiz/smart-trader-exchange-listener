@@ -1,0 +1,87 @@
+#%RAML 1.0
+---
+title:  Exchange Listener Microservice
+version: v1
+protocols: [HTTP]
+baseUri:  http://bitmain.exchangelistener
+types: 
+  Config: !include ./configuration.raml
+/api:
+  /:
+    get:
+      description: Exchange Listener heartbeet check.
+      responses:
+          200:
+            body:
+              application/json:
+                type: object
+                example:
+                  {
+                    "isAlive": true
+                  }
+  /config:
+    description: Exchange Listener configuration management
+    get:
+      queryParameters:
+        section:
+          displayName: Section
+          type: string
+          description: Configuration section key.
+          example: KAFKA
+          required: false
+      description: Retrieve either the entire configuration object or a specific section.
+      responses:
+        200:
+          body:
+            application/json:
+              type: Config
+              example:
+                {
+                  "HTTP_PORT": 9000,
+                  "EXCHANGE_LIST":
+                   {
+                    "Bitfinex":  ["BTC-USD", "BCH-USD"],
+                    "Bitstamp":  ["BTC-USD", "BCH-USD"],
+                    },
+                  "KAFKA": 
+                  {
+                      "ENDPOINT": "localhost:2181",
+                      "TOPICS": 
+                        [
+                          {
+                            topic: "BTC-USD",
+                            partitions: 2,
+                            replicationFactor: 3
+                          },
+                          {
+                            topic: "BCH-USD",
+                            partitions: 2,
+                            replicationFactor: 3
+                          }
+                        ]
+                  },
+                  "LOG": 
+                  {
+                      "LOG_LEVEL": "INFO",
+                      "LOG_MAX_FILES": 10,
+                      "LOG_MAX_FILE_SIZE": 500
+                  }
+                }
+    post:
+      description: Modify either the entire configuration object or a specific section.
+      body:
+        application/json:
+          properties:
+            newConfig:
+              description: Configuration object.
+              required: true
+              type: Config
+      responses:
+        200:
+          body:
+            application/json:
+              type: object
+              example:
+                {
+                  "success": true
+                }

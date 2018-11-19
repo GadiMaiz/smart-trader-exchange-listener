@@ -2,20 +2,25 @@ import logger from 'logger';
 import Pusher from 'pusher-js';
 import orderbook_manager from 'orderbook/orderbook_manager';
 import ConfigManager from 'node-config-module';
+import * as path from 'path';
 
 const pusher = new Pusher('de504dc5763aeef9ff52');
 const DEFAULT_BSTMP_CONFIG = {
-  INTERNAL_PAIRS: { 'BTC-USD': '', 'BCH-USD': '_bchusd' }
+  INTERNAL_PAIRS: {
+    'BTC - USD': '',
+    'BCH-USD': '_bchusd'
+  }
 };
 
-let conf = DEFAULT_BSTMP_CONFIG;
-ConfigManager.init(DEFAULT_BSTMP_CONFIG, '../../config_files/bitstamp_config.json', () => {
-  conf = ConfigManager.getConfig();
-});
+const configFilePath = path.resolve(__dirname, '../../config_files/bitstamp_config.json');
+const conf = ConfigManager.getLocalConfig(configFilePath, DEFAULT_BSTMP_CONFIG);
+// ConfigManager.init(DEFAULT_BSTMP_CONFIG, path.resolve(__dirname, '../../config_files/bitstamp_config.json'), () => {
+//   conf = ConfigManager.getConfig();
+// });
 
-ConfigManager.setConfigChangeCallback('bitstamp', () => {
-  conf = ConfigManager.getConfig();
-});
+// ConfigManager.setConfigChangeCallback('bitstamp', () => {
+//   conf = ConfigManager.getConfig();
+// });
 
 class bitstamp_orderbook {
   constructor(orderbook_listener, assetPairs) {
@@ -50,8 +55,8 @@ class bitstamp_orderbook {
   subscribe(assetPair) {
     let bitstamp_pair = conf.INTERNAL_PAIRS[assetPair];
     let pairIndex = this.orderbook_manager.requiredPairs.indexOf(assetPair);
-    if (pairIndex < 0)  this.orderbook_manager.requiredPairs.push(pairIndex);
-    if (bitstamp_pair ) this.orderbook_channels[assetPair] = pusher.subscribe('order_book' + bitstamp_pair);
+    if (pairIndex < 0) this.orderbook_manager.requiredPairs.push(pairIndex);
+    if (bitstamp_pair) this.orderbook_channels[assetPair] = pusher.subscribe('order_book' + bitstamp_pair);
     else logger.warn('$s is not defined in Bitstamp', assetPair);
   }
 
@@ -60,15 +65,15 @@ class bitstamp_orderbook {
   }
 
   start() {
-    for(let assetPair of this.orderbook_manager.requiredPairs) {
+    for (let assetPair of this.orderbook_manager.requiredPairs) {
       let bitstamp_pair = conf.INTERNAL_PAIRS[assetPair];
-      if(bitstamp_pair !== null) {
+      if (bitstamp_pair !== null) {
         this.orderbook_channels[assetPair] = pusher.subscribe('order_book' + bitstamp_pair);
       }
     }
 
     const available_channels = Object.keys(this.orderbook_channels);
-    for(let assetPair of available_channels) {
+    for (let assetPair of available_channels) {
       this.orderbook_channels[assetPair].bind('data', data => {
         const orderTypes = ['asks', 'bids'];
         for (let orderType of orderTypes) {
@@ -133,12 +138,12 @@ class bitstamp_orderbook {
   unsubscribe(pair) {
     let bitstamp_pair = conf.INTERNAL_PAIRS(pair);
     let pairIndex = this.orderbook_manager.requiredPairs.indexOf(pair);
-    if (pairIndex > -1)  this.orderbook_manager.requiredPairs.splice(pairIndex, 1);
+    if (pairIndex > -1) this.orderbook_manager.requiredPairs.splice(pairIndex, 1);
     pusher.unsubscribe('order_book' + bitstamp_pair);
   }
 
   stop() {
-    for(let assetPair of Object.keys(this.orderbook_channels)) {
+    for (let assetPair of Object.keys(this.orderbook_channels)) {
       pusher.unsubscribe('order_book' + conf.INTERNAL_PAIRS[assetPair]);
     }
   }
