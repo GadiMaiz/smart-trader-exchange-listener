@@ -6,8 +6,8 @@ import CRC from 'crc-32';
 import * as path from 'path';
 
 const DEFAULT_BFX_CONFIG = {
-  INTERNAL_PAIRS: { 'BTC-USD': 'BTCUSD', 'BCH-USD': 'BCHUSD' },
-  EXTERNAL_PAIRS: { 'BTCUSD': 'BTC-USD', 'BCHUSD': 'BCH-USD' },
+  INTERNAL_PAIRS: { 'BTC-USD': 'BTCUSD', 'BCH-USD': 'BABUSD' },
+  EXTERNAL_PAIRS: { 'BTCUSD': 'BTC-USD', 'BABUSD': 'BCH-USD' },
   ORDERBOOK_LENGTH: 100,
   CS_FLAG: 131072
 };

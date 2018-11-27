@@ -28,7 +28,7 @@ export default class Producer {
 
         this.client.refreshMetadata([], () => { });
 
-        this.client.loadMetadataForTopics(topicNames, function (error, results) {
+        this.client.loadMetadataForTopics([], function (error, results) {
           if (error) {
             return logger.error(error);
           }
@@ -53,8 +53,8 @@ export default class Producer {
           });
 
           this.client.createTopics(missingTopicsObj, (error, result) => {
-            if (error) {
-              logger.error('Failed to create missing Kafka topics: %o', error);
+            if (error || !_.isEmpty(result)) {
+              logger.error('Failed to create missing Kafka topics: %o', error || result);
             }
             else {
               logger.debug('All topics were created successfully');
@@ -69,8 +69,7 @@ export default class Producer {
 
       });
 
-
-    }); // .catch(err => logger.error('Failed to initialized kafka producer: %o', err));
+    });
   }
 
   sendMessage(message, topic) {
