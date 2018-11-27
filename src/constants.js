@@ -3,7 +3,7 @@ import * as  _ from 'lodash';
 
 export const DEFAULT_CURRENCIES = ['BTC-USD', 'BCH-USD'];
 export const DEFAULT_PARTITIONS_NUMBER = 2;
-export const DEFAULT_REPLICATION_FACTOR = 3;
+export const DEFAULT_REPLICATION_FACTOR = 1;
 
 
 export const DEFAULT_HTTP_PORT = 9015;
