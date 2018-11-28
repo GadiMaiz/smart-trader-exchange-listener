@@ -7,7 +7,7 @@ import * as path from 'path';
 const pusher = new Pusher('de504dc5763aeef9ff52');
 const DEFAULT_BSTMP_CONFIG = {
   INTERNAL_PAIRS: {
-    'BTC - USD': '',
+    'BTC-USD': '',
     'BCH-USD': '_bchusd'
   }
 };

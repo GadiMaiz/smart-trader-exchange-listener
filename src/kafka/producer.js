@@ -4,10 +4,11 @@ import { Producer as KafkaProducer, KafkaClient } from 'kafka-node';
 
 export default class Producer {
 
-  constructor(endpoint, topics) {
+  constructor(endpoint, topics, partitioner) {
     this.endpoint = endpoint;
     this.topics = topics;
     this.ready = false;
+    this.partitioner = partitioner;
   }
 
   isReady() {
@@ -19,8 +20,8 @@ export default class Producer {
     return new Promise((resolve, reject) => {
 
       this.client = new KafkaClient({ kafkaHost: this.endpoint });
-      this.producer = new KafkaProducer(this.client, { partitionerType: 2 });
-
+      const partitionerType = this.partitioner ? 4 : 2;
+      this.producer = new KafkaProducer(this.client, { partitionerType }, this.partitioner);
 
       this.producer.on('ready', () => {
 
@@ -72,10 +73,10 @@ export default class Producer {
     });
   }
 
-  sendMessage(message, topic) {
+  sendMessage(message, topic, key) {
     this.producer.send([{
       topic: topic, messages: [message],
-      attributes: 0
+      attributes: 0, key
     }], (err, result) => {
       if (err)
         logger.error('Producer failed to send kafka message for topic \'%s\': %o', topic, err);

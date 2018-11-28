@@ -18,10 +18,29 @@ ConfigManager.setConfigChangeCallback('log', function (newConfig, prevConfig) {
   const { LOG_LEVEL, LOG_MAX_FILE_SIZE, LOG_MAX_FILES } = newConfig.LOG;
   logger.updateLogConfig(LOG_LEVEL, LOG_MAX_FILE_SIZE, LOG_MAX_FILES);
 });
-ConfigManager.init(DEFAULT_CONFIG, null, async (err, config) => {
+
+const startListener = async (err, config) => {
+
+  if (err) {
+    logger.error('Error during listener setup: %o', err);
+    return -1;
+  }
+
+  const exchangeList = config.EXCHANGE_LIST;
+  const exchanges = Object.keys(exchangeList);
+
+  // Custom kafka-producer partitioner (partition by exchange name)
+  const ExchangePartitioner = (partitions, key) => {
+    if (!key) return 0;
+
+    let exchangeIndex = exchanges.indexOf(key);
+    exchangeIndex = exchangeIndex < 0 ? 0 : exchangeIndex;
+    const index = exchangeIndex % partitions.length;
+    return partitions[index];
+  };
 
   const { ENDPOINT, TOPICS } = config.KAFKA;
-  producer = new Producer(ENDPOINT, TOPICS);
+  producer = new Producer(ENDPOINT, TOPICS, ExchangePartitioner);
   await producer.init();
 
   logger.info('start_listening');
@@ -47,8 +66,9 @@ ConfigManager.init(DEFAULT_CONFIG, null, async (err, config) => {
   });
 
   // initialize exchanges
-  let exchangeList = config.EXCHANGE_LIST;
-  for (let exchangeName of Object.keys(exchangeList)) {
+  for (let exchangeName of exchanges) {
     initializeExchange(exchangeName, listeners, orderbooks, exchangeList[exchangeName], producer);
   }
-});
+};
+
+ConfigManager.init(DEFAULT_CONFIG, null, startListener);

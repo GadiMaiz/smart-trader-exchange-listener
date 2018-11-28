@@ -15,7 +15,7 @@ export default class OrderbookListener {
       curr_orderbook['time'] = Date.now();
       curr_orderbook['exchange'] = this.orderbook.exchange_name;
       curr_orderbook['assetPair'] = assetPair;
-      this.producer.sendMessage(JSON.stringify(curr_orderbook), assetPair);
+      this.producer.sendMessage(JSON.stringify(curr_orderbook), assetPair, this.orderbook.exchange_name);
 
     }
   }
