@@ -75,6 +75,7 @@ class bitstamp_orderbook {
     const available_channels = Object.keys(this.orderbook_channels);
     for (let assetPair of available_channels) {
       this.orderbook_channels[assetPair].bind('data', data => {
+        this.orderbook_manager.clear_orderbook([assetPair]);
         const orderTypes = ['asks', 'bids'];
         for (let orderType of orderTypes) {
           for (let order of data[orderType]) {

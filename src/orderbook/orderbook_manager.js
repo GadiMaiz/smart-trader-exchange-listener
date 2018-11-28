@@ -7,7 +7,7 @@ class orderbook_manager {
     this.clear_orderbook(this.requiredPairs);
     this.orderbook_listener = orderbook_listener;
     this.exchange_name = exchange_name;
-    
+
   }
 
   clear_orderbook(assetPairs) {
@@ -15,7 +15,7 @@ class orderbook_manager {
     this.orderbook = {};
     const price_compare_asc = (a, b) => (a < b ? 1 : (a > b ? -1 : 0));
     const price_compare_desc = (a, b) => (a > b ? 1 : (a < b ? -1 : 0));
-    for(let assetPair of assetPairs) {
+    for (let assetPair of assetPairs) {
       this.orderbook[assetPair] = {
         asks: new SortedMap(null, null, price_compare_desc),
         bids: new SortedMap(null, null, price_compare_asc)
@@ -24,19 +24,23 @@ class orderbook_manager {
   }
 
   add_order(order, asset_pair) {
-    let orders_map = this.orderbook[asset_pair][order.type];
+    const orders_map = this.orderbook[asset_pair][order.type];
     delete order.type;
-    let orders_in_curr_price = orders_map.get(order.price);
-    let exchange_id = order.exchange_id;
+    const orders_in_curr_price = orders_map.get(order.price);
+    const exchange_id = order.exchange_id;
     delete order.exchange_id;
-    if (orders_in_curr_price == null) {
+    if (!orders_in_curr_price) {
       order.exchange_orders = {};
-      order.exchange_orders[exchange_id] = { price: order.price, size: order.size };
+      if (exchange_id) {
+        order.exchange_orders[exchange_id] = { price: order.price, size: order.size };
+      }
       orders_map.set(order.price, order);
     }
     else {
       orders_in_curr_price.size += order.size;
-      orders_in_curr_price.exchange_orders[exchange_id] = order;
+      if (exchange_id) {
+        orders_in_curr_price.exchange_orders[exchange_id] = order;
+      }
     }
     // this.print_orderbook();
   }
@@ -45,29 +49,24 @@ class orderbook_manager {
     logger.debug('Deleting order: %s', JSON.stringify(order));
     let orders_map = this.orderbook[asset_pair][order.type];
     let orders_in_curr_price = orders_map.get(order.price);
-    if (orders_in_curr_price != null)
-    {
+    if (orders_in_curr_price != null) {
       let order_to_delete = orders_in_curr_price.exchange_orders[order.exchange_id];
-      if (order_to_delete != null)
-      {
+      if (order_to_delete != null) {
         logger.debug('Found order in price level, before delete %s\n', JSON.stringify(orders_in_curr_price));
         orders_in_curr_price.size -= order_to_delete.size;
         delete orders_in_curr_price.exchange_orders[order.exchange_id];
         logger.debug('Found order in price level, after delete %s\n', JSON.stringify(orders_in_curr_price));
       }
-      else
-      {
+      else {
         logger.debug('Didn\'t find order with id "%s", %s in price level %s', order.exchange_id, JSON.stringify(order), JSON.stringify(orders_in_curr_price));
       }
 
-      if (orders_in_curr_price.size == 0 || Object.keys(orders_in_curr_price.exchange_orders).length == 0)
-      {
+      if (orders_in_curr_price.size == 0 || Object.keys(orders_in_curr_price.exchange_orders).length == 0) {
         orders_map.delete(order.price);
         logger.debug('Price level %s removed', order.price);
       }
     }
-    else
-    {
+    else {
       logger.debug('Didn\'t find order %s', JSON.stringify(order));
     }
     // this.print_orderbook();
@@ -77,23 +76,19 @@ class orderbook_manager {
     logger.debug('Changing order: %s', JSON.stringify(order));
     let orders_map = this.orderbook[asset_pair][order.type];
     let orders_in_curr_price = orders_map.get(order.price);
-    if (orders_in_curr_price != null)
-    {
+    if (orders_in_curr_price != null) {
       let order_to_change = orders_in_curr_price.exchange_orders[order.exchange_id];
-      if (order_to_change != null)
-      {
+      if (order_to_change != null) {
         let size_change = order.size - order_to_change.size;
         order_to_change.size = order.size;
         orders_in_curr_price.size += size_change;
       }
-      else
-      {
+      else {
         logger.debug('Didn\'t find order to change %s in price level %s',
           JSON.stringify(order), JSON.stringify(orders_in_curr_price));
       }
     }
-    else
-    {
+    else {
       logger.debug('Didn\'t find order to change for order %s', JSON.stringify(order));
     }
     // this.print_orderbook();
@@ -140,23 +135,19 @@ class orderbook_manager {
   }
 
   get_orderbook(assetPair, limit) {
-    if (limit == null)
-    {
+    if (limit == null) {
       return this.orderbook[assetPair];
     }
-    else
-    {
+    else {
       let order_types = ['asks', 'bids'];
       let result_orderbook = {};
-      for (let order_type of order_types)
-      {
+      for (let order_type of order_types) {
         let type_limit = limit ? Math.min(limit, this.orderbook[assetPair][order_type].length) :
           this.orderbook[assetPair][order_type].length;
         let orders_iterator = this.orderbook[assetPair][order_type].iterate();
         let curr_order = orders_iterator.next();
         let curr_types_orders = [];
-        for (let order_index = 0; order_index < type_limit && !curr_order.done; ++order_index)
-        {
+        for (let order_index = 0; order_index < type_limit && !curr_order.done; ++order_index) {
           curr_types_orders.push(curr_order.value.value);
           curr_order = orders_iterator.next();
         }
