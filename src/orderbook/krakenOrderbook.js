@@ -1,8 +1,7 @@
 import WebSocket from 'ws';
 import logger from 'logger';
-import orderbook_manager from 'orderbook/orderbook_manager';
+import OrderbookManager from './orderbookManager';
 import ConfigManager from 'node-config-module';
-import CRC from 'crc-32';
 import * as path from 'path';
 
 const DEFAULT_BFX_CONFIG = {
@@ -12,22 +11,16 @@ const DEFAULT_BFX_CONFIG = {
   CS_FLAG: 131072
 };
 
-const configFilePath = path.resolve(__dirname, '../../config_files/bitfinex_config.json');
+const configFilePath = path.resolve(__dirname, '../../config_files/kraken_config.json');
 const conf = ConfigManager.getLocalConfig(configFilePath, DEFAULT_BFX_CONFIG);
-// ConfigManager.init(DEFAULT_BFX_CONFIG, path.resolve(__dirname, '../../config_files/bitfinex_config.json'), () => {
-//   conf = ConfigManager.getConfig();
-// });
 
-// ConfigManager.setConfigChangeCallback('bitfinex', () => {
-//   conf = ConfigManager.getConfig();
-// });
 
-class bitfinex_orderbook {
+export default class KrakenOrderbook {
 
   constructor(orderbook_listener, assetPairs) {
     this.orderbookSocket = null;
     this.orderbookChannels = {};
-    this.orderbook_manager = new orderbook_manager(orderbook_listener, 'Bitfinex', assetPairs);
+    this.orderbook_manager = new OrderbookManager(orderbook_listener, 'Bitfinex', assetPairs);
   }
 
   init() {
@@ -163,28 +156,6 @@ class bitfinex_orderbook {
 
   // Checksum is calculated over the top 25 orders in the orderbook
   handle_checksum_message(message) {
-    // let channel = message[0];
-    // const assetPair = this.orderbookChannels[channel].pair;
-    // logger.debug('Bitfinex checksum message %s on channel %s', assetPair, channel);
-    // if (this.orderbookChannels[channel] && this.orderbookChannels[channel].active) {
-    //   let checksum = message[2];
-    //   let checksumData = [];
-    //   let currentOrderbook = this.orderbook_manager.get_orderbook(this.orderbookChannels[channel].pair, 25);
-    //   currentOrderbook = this.expand_orderbook(currentOrderbook);
-    //   let bids = currentOrderbook['bids'].toArray();
-    //   let asks = currentOrderbook['asks'].toArray();
-    //   for (let i = 0; i < 25; i++) {
-    //     if (bids[i]) checksumData.push(bids[i].id, bids[i].size);
-    //     if (asks[i]) checksumData.push(asks[i].id, -asks[i].size);
-    //   }
-    //   const checksumString = checksumData.join(':');
-    //   const checksumCalculation = CRC.str(checksumString);
-    //   if (checksum !== checksumCalculation) {
-    //     logger.warn(`Bitfinex checksum failed on channel %s. Reset %s orderbook`, channel, assetPair);
-    //     this.reset_orderbook(channel, assetPair);
-    //     return false;
-    //   }
-    // }
     return true;
   }
 
@@ -231,5 +202,3 @@ class bitfinex_orderbook {
   }
 
 }
-
-export default bitfinex_orderbook;

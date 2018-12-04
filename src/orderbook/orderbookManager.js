@@ -1,7 +1,7 @@
 import logger from 'logger';
 import SortedMap from 'collections/sorted-map';
 
-class orderbook_manager {
+export default class OrderbookManager {
   constructor(orderbook_listener, exchange_name, assetPairs) {
     this.requiredPairs = assetPairs;
     this.clear_orderbook(this.requiredPairs);
@@ -157,5 +157,3 @@ class orderbook_manager {
     }
   }
 }
-
-export default orderbook_manager;

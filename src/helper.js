@@ -1,11 +1,11 @@
-import bitstamp_orderbook from 'orderbook/bitstamp_orderbook';
-import bitfinex_orderbook from 'orderbook/bitfinex_orderbook';
+import BitstampOrderbook from 'orderbook/bitstampOrderbook';
+import BitfinexOrderbook from 'orderbook/bitfinexOrderbook';
 import OrderbookListener from './orderbookListener';
 import logger from 'logger';
 
 const ORDERBOOKS = {
-  bitstamp_orderbook,
-  bitfinex_orderbook
+  BitstampOrderbook,
+  BitfinexOrderbook
 };
 
 class DynamicOrderbook {

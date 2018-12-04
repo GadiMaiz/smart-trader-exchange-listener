@@ -18,8 +18,8 @@
                 ],
                 "alias": {
                     "utils": "./src/utils",
-                    "server": "./src/server",
-                    "db": "./src/dal",
+                    "restServer": "./src/server",
+                    "orderbook": "./src/orderbook",
                     "logger": "./src/utils/logger"
                 }
             }

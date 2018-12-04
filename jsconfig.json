@@ -2,14 +2,14 @@
     "compilerOptions": {
         "baseUrl": ".",
         "paths": {
-            "utils": [
-                "./src/utils"
+            "utils/*": [
+                "./src/utils/*"
             ],
-            "server": [
-                "./src/server/"
+            "restServer": [
+                "./src/server"
             ],
-            "db": [
-                "./src/dal"
+            "orderbook/*": [
+                "./src/orderbook/*"
             ],
             "logger": [
                 "./src/utils/logger"

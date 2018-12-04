@@ -1,6 +1,6 @@
 import logger from 'logger';
 import Pusher from 'pusher-js';
-import orderbook_manager from 'orderbook/orderbook_manager';
+import OrderbookManager from './orderbookManager';
 import ConfigManager from 'node-config-module';
 import * as path from 'path';
 
@@ -22,12 +22,12 @@ const conf = ConfigManager.getLocalConfig(configFilePath, DEFAULT_BSTMP_CONFIG);
 //   conf = ConfigManager.getConfig();
 // });
 
-class bitstamp_orderbook {
+export default class BitstampOrderbook {
   constructor(orderbook_listener, assetPairs) {
     this.reset_timestamp = 0;
     this.required_pairs = null;
     this.orderbook_channels = {};
-    this.orderbook_manager = new orderbook_manager(orderbook_listener, 'Bitstamp', assetPairs);
+    this.orderbook_manager = new OrderbookManager(orderbook_listener, 'Bitstamp', assetPairs);
   }
 
   init() {
@@ -149,5 +149,3 @@ class bitstamp_orderbook {
     }
   }
 }
-
-export default bitstamp_orderbook;

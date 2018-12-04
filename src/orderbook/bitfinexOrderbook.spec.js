@@ -1,12 +1,12 @@
 import { expect } from 'chai';
-import bitfinex_orderbook from './bitfinex_orderbook';
+import BitfinexOrderbook from 'orderbook/bitfinexOrderbook';
 import api from 'sinon';
 const _ = require('lodash');
 
 const assetPair = 'BTC-USD';
 const sinon = api;
 const listener_stub = sinon.stub();
-let bitfinexOrderbook = new bitfinex_orderbook(listener_stub, [assetPair]);
+let bitfinexOrderbook = new BitstampOrderbook(listener_stub, [assetPair]);
 let buildOrderbook = { bids: [], asks: [] };
 const snapshotMessage = [555994,[[17575217703,6603.8,0.997],[17575218317,6603.8,0.01765769],[17575242622,6603.8,0.356052],
   [17575297520,6603.8,4.46592798],[17575302814,6603.8,1.61094928],[17575217171,6603.7,5],[17575300558,6603.2071587,7.999],
