@@ -113,6 +113,7 @@ class STLogger {
     // go to lower case to be agnostic to ini file casing and simple human mistakes.
     newLevel = newLevel.toLowerCase();
 
+    /*   winston log levels are: silly, debug, verbose, info, warn, error   */
     if (!(newLevel == 'info' || newLevel == 'debug' || newLevel == 'error' || newLevel == 'warn')) {
       this.warn('New log level "%s" is invalid, no change in value ("%s"). Allowed values are: "INFO" (recommended), "DEBUG", "WARN" or "ERROR".', newLevel, this._logger.transports[1].level);
     }
@@ -188,8 +189,5 @@ class STLogger {
 
 }
 
-/*   winston log levels are: silly, debug, verbose, info, warn, error   */
-
-let log = new STLogger();
-
-module.exports = log;
+const log = new STLogger();
+export default log;

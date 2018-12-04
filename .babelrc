@@ -18,7 +18,7 @@
                 ],
                 "alias": {
                     "utils": "./src/utils",
-                    "server": "./src/server",
+                    "restServer": "./src/server",
                     "db": "./src/dal",
                     "logger": "./src/utils/logger"
                 }
