@@ -22,7 +22,7 @@ export const EXCHANGE_ACTIONS = {
 };
 
 export const initializeExchange = (exchangeName, listeners, orderbooks, assetPairs, producer) => {
-  let exchangeOrderbook = exchangeName.toLowerCase() + '_orderbook';
+  let exchangeOrderbook = `${exchangeName}Orderbook`;
   logger.debug(`Initialize exchange ${exchangeName} - ${assetPairs}`);
   if (ORDERBOOKS[exchangeOrderbook]) {
     listeners[exchangeName] = new OrderbookListener(producer, null);
